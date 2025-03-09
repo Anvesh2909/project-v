@@ -47,18 +47,36 @@ enum Role {
   MENTOR
 }
 
+enum CourseType {
+  IIE
+  TEC
+  ESO
+  LCH
+  HWB
+}
+
+enum DifficultyLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  ALL_LEVELS
+}
+
 model Course {
-  id            String       @id
-  title         String       @unique
+  id            String          @id
+  title         String          @unique
   description   String?
   image         String
-  createdAt     DateTime     @default(now())
+  createdAt     DateTime        @default(now())
+  duration      String // Store estimated course duration (e.g., "6 weeks", "20 hours")
+  difficulty    DifficultyLevel // Store the difficulty level
   instructorId  String
-  isApproved    Boolean      @default(false)
-  instructor    User         @relation("InstructorCourses", fields: [instructorId], references: [id])
-  assignedUsers User[]       @relation("AssignedCourses")
+  isApproved    Boolean         @default(false)
+  instructor    User            @relation("InstructorCourses", fields: [instructorId], references: [id])
+  assignedUsers User[]          @relation("AssignedCourses")
   courseContent Chapter[]
   Enrollment    Enrollment[]
+  type          CourseType
 }
 
 model Chapter {
@@ -88,6 +106,7 @@ model Enrollment {
   studentId String
   course    Course @relation(fields: [courseId], references: [id])
   courseId  String
+  progress  Float  @default(0.0)
 }
 
 model Club {

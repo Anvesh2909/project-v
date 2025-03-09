@@ -1,5 +1,13 @@
-import {getUser, getUsers, updateUserPhoto} from "../services/userService";
+import {
+    allEnrollments,
+    checkEnrollment, getChapters, getLectures,
+    getUser,
+    getUsers,
+    setEnrollment,
+    updateUserPhoto
+} from "../services/userService";
 import { Request, Response } from "express";
+import {getCourses} from "../services/courseService";
 
 export const getUserController = (req: Request, res: Response) => {
     const { id } = req.body;
@@ -34,5 +42,67 @@ export const getUsersController = async (req: Request, res: Response) => {
     } catch (error) {
         console.error("Error in getUsersController:", error);
         res.status(500).json({ error: "Failed to fetch users" });
+    }
+}
+export const getCoursesController = async (req: Request, res: Response) => {
+    try {
+        const response = await getCourses();
+        res.status(200).json(response);
+    }catch (e) {
+        console.error("Failed to fetch courses:", e);
+        res.status(500).json({ error: "Failed to fetch courses" });
+    }
+}
+
+
+
+export const getEnrollementStatus = async (req: Request, res: Response) => {
+    const { userId, courseId } = req.body;
+    try {
+        const response = await checkEnrollment(userId, courseId);
+        res.status(200).json(response);
+    } catch (error) {
+        console.error("Error in getEnrollementStatus:", error);
+        res.status(500).json({ error: "Failed to check enrollment status" });
+    }
+}
+export const getAllEnrollments = async (req: Request, res: Response) => {
+    const { userId } = req.body;
+    try {
+        const response = await allEnrollments(userId);
+        res.status(200).json(response);
+    } catch (error) {
+        console.error("Error in getAllEnrollments:", error);
+        res.status(500).json({ error: "Failed to fetch enrollments" });
+    }
+}
+export const setEnrollmentController = async (req: Request, res: Response) => {
+    const { id, courseId } = req.body;
+    try {
+        const response = await setEnrollment(id, courseId);
+        res.status(200).json(response);
+    } catch (error) {
+        console.error("Error in setEnrollmentController:", error);
+        res.status(500).json({ error: "Failed to set enrollment" });
+    }
+}
+export const getChapterController = async (req: Request, res: Response) => {
+    const { courseId } = req.params;
+    try {
+        const response = await getChapters(courseId);
+        res.status(200).json(response);
+    } catch (error) {
+        console.error("Error in getChapterController:", error);
+        res.status(500).json({ error: "Failed to fetch chapters" });
+    }
+}
+export const getLectureController = async (req: Request, res: Response) => {
+    const { chapterId } = req.params;
+    try {
+        const response = await getLectures(chapterId);
+        res.status(200).json(response);
+    } catch (error) {
+        console.error("Error in getLectureController:", error);
+        res.status(500).json({ error: "Failed to fetch lectures" });
     }
 }

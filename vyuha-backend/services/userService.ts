@@ -1,5 +1,6 @@
 import prisma from "../config/dbConfig";
 import supabase from "../config/supabase";
+
 export async function getUser(id: string) {
     const user = await prisma.user.findUnique({
         where: {
@@ -42,4 +43,33 @@ export async function updateUserPhoto(id: string, photoBuffer: Buffer, mimetype:
 export async function getUsers(){
     const users = prisma.user.findMany();
     return users;
+}
+export const checkEnrollment = async (userId: string, courseId: string) => {
+    const enrollment = await prisma.enrollment.findFirst({
+        where: { studentId: userId, courseId: courseId },
+    });
+    return !!enrollment;
+};
+export const allEnrollments = async (userId: string) => {
+    return prisma.enrollment.findMany({
+        where: {studentId: userId},
+    });
+}
+export const setEnrollment = async (userId: string, courseId: string) => {
+    return prisma.enrollment.create({
+        data: {
+            studentId: userId,
+            courseId: courseId,
+        },
+    });
+}
+export const getChapters = async (courseId: string) => {
+    return prisma.chapter.findMany({
+        where: { courseId },
+    });
+}
+export const getLectures = async (chapterId: string) => {
+    return prisma.lecture.findMany({
+        where: { chapterId },
+    });
 }

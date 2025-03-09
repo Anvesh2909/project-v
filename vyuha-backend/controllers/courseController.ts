@@ -9,18 +9,29 @@ import {
 import { Request, Response } from "express";
 
 export const createCourseController = async (req: Request, res: Response): Promise<void> => {
-    const { title, description, id } = req.body;
+    const { title, description, id, courseType, duration, difficulty } = req.body;
     const image = req.file?.buffer;
     const mimetype = req.file?.mimetype;
     const instructorId = id;
+
     if (!image || !mimetype) {
         res.status(400).json({ error: "No image uploaded or invalid file type" });
         return;
     }
+
     try {
-        const response = await createCourse({  title, description, image, instructorId, mimetype });
+        const response = await createCourse({
+            title,
+            description,
+            image,
+            instructorId,
+            mimetype,
+            courseType,
+            duration,
+            difficulty
+        });
         res.status(200).json(response);
-    } catch (error:any) {
+    } catch (error: any) {
         res.status(400).json({ error: error.message });
     }
 };

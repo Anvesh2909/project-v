@@ -1,6 +1,8 @@
 import prisma from "../config/dbConfig";
 import { createClient } from "@supabase/supabase-js";
 const supabase = createClient(process.env.SUPABASE_URL ?? '', process.env.SUPABASE_ANON_KEY ?? '');
+type CourseType = "IIE" | "TEC" | "ESO" | "LCH" | "HWB";
+type DifficultyLevel = "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "ALL_LEVELS";
 async function generateCourseId() {
     const year = new Date().getFullYear().toString().slice(-2);
     const prefix = `VYCS`;
@@ -24,15 +26,16 @@ export async function createCourse(data: {
     description: string,
     image: Buffer,
     instructorId: string,
-    mimetype: string
+    mimetype: string,
+    courseType: CourseType,
+    duration: string,
+    difficulty: DifficultyLevel,
 }) {
     try {
+        // Upload image to Supabase
         const bucketName = process.env.SUPABASE_BUCKET_NAME || "vyuha-uploads";
         const fileExtension = data.mimetype.split("/")[1];
         const filePath = `course/${data.instructorId}/${data.title}.${fileExtension}`;
-
-        console.log("Uploading to bucket:", bucketName, "Path:", filePath);
-
         const { error: uploadError } = await supabase.storage
             .from(bucketName)
             .upload(filePath, data.image, { contentType: data.mimetype, cacheControl: "3600", upsert: true });
@@ -41,26 +44,32 @@ export async function createCourse(data: {
             console.error("Upload Error:", uploadError);
             throw new Error(`Failed to upload image: ${uploadError.message}`);
         }
-
         const { data: urlData } = supabase.storage.from(bucketName).getPublicUrl(filePath);
         if (!urlData) throw new Error("Failed to get public URL");
         const publicUrl = urlData.publicUrl;
+        function isDifficultyLevel(value: any): value is DifficultyLevel {
+            const difficultyLevels = ["BEGINNER", "INTERMEDIATE", "ADVANCED", "ALL_LEVELS"];
+            return difficultyLevels.includes(value);
+        }
 
+        if (!isDifficultyLevel(data.difficulty)) {
+            throw new Error(`Invalid difficulty level: ${data.difficulty}`);
+        }
         console.log("Image uploaded successfully. Public URL:", publicUrl);
-
         const courseId = await generateCourseId();
-
         const course = await prisma.course.create({
             data: {
                 id: courseId,
                 title: data.title,
                 description: data.description,
                 image: publicUrl,
-                instructorId: data.instructorId
-            }
+                instructorId: data.instructorId,
+                type: data.courseType,
+                duration: data.duration,
+                difficulty: data.difficulty
+            },
         });
 
-        console.log("Course Created:", course);
         return course;
     } catch (error) {
         console.error("Error creating course:", error);
@@ -196,5 +205,16 @@ export async function getLectures(chapterId: string) {
     return prisma.lecture.findMany({
         where: { chapterId },
         orderBy: { order: "asc" }
+    });
+}
+export async function getCourses() {
+    return prisma.course.findMany({
+        include: {
+            courseContent: {
+                select: {
+                    chapterId: true,
+                },
+            },
+        },
     });
 }
