@@ -76,7 +76,7 @@ export const addLectureController = async (req: Request, res: Response): Promise
     console.log("Body:", req.body);
     console.log("File:", req.file);
 
-    const { title, lectureDuration, order, chapterId, content, resourceType, resourceUrl } = req.body;
+    const { title, lectureDuration, order, chapterId, content, resourceType, resourceUrl, requiresSubmission } = req.body;
     const resource = req.file?.buffer;
     const mimetype = req.file?.mimetype;
 
@@ -95,7 +95,8 @@ export const addLectureController = async (req: Request, res: Response): Promise
             resourceType,
             resource,
             mimetype,
-            resourceUrl
+            resourceUrl,
+            requiresSubmission: requiresSubmission === 'true'
         });
         res.status(201).json(response);
     } catch (error: any) {

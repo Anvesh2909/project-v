@@ -131,14 +131,15 @@ export async function getChapters(courseId: string) {
     });
 }
 export async function addLecture(data: {
-    title: string,
-    lectureDuration: number,
-    chapterId: string,
-    content: string,
-    resourceType: string,
-    resource?: Buffer,
-    mimetype?: string,
-    resourceUrl?: string
+    title: any;
+    lectureDuration: number;
+    chapterId: any;
+    content: any;
+    resourceType: any;
+    resource: Buffer<ArrayBufferLike> | undefined;
+    mimetype: string | undefined;
+    resourceUrl: any;
+    requiresSubmission: boolean
 }) {
     console.log("🔄 Processing new lecture with data:", data);
 
@@ -191,7 +192,8 @@ export async function addLecture(data: {
                 chapterId: data.chapterId,
                 content: data.content,
                 resourceType: data.resourceType,
-                resourceUrl
+                resourceUrl,
+                requiresSubmission: data.requiresSubmission || false
             }
         });
         console.log("🎉 Lecture created successfully:", lecture);
@@ -211,9 +213,12 @@ export async function getCourses() {
     return prisma.course.findMany({
         include: {
             courseContent: {
-                select: {
-                    chapterId: true,
+                include: {
+                    content: true,
                 },
+                orderBy: {
+                    chapterOrder: "asc"
+                }
             },
         },
     });

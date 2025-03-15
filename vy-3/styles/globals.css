@@ -28,7 +28,9 @@ body {
     padding: 120px 24px 160px 24px;
     pointer-events: none;
 }
-
+.app-full {
+    @apply relative z-10 w-full;
+}
 .main:before {
     background: radial-gradient(circle, rgba(2, 0, 36, 0) 0, #f0f8ff 100%);
     position: absolute;
@@ -41,7 +43,6 @@ body {
 
 .main:after {
     content: "";
-    background-image: url("/assets/images/grid.svg");
     z-index: 1;
     position: absolute;
     width: 100%;
@@ -84,9 +85,6 @@ body {
 
 /* Tailwind Styles with Blue Theme */
 
-.app {
-    @apply relative z-10 flex justify-center items-center flex-col max-w-7xl mx-auto sm:px-16 px-6;
-}
 
 .blue_btn {
     @apply rounded-full border border-blue-600 bg-blue-600 py-1.5 px-5 text-white transition-all hover:bg-white hover:text-blue-600 text-center text-sm flex items-center justify-center;

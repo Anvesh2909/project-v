@@ -3,6 +3,7 @@ import { createContext, ReactNode, useState, useEffect } from "react";
 import axios from "axios";
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
+import {jwtDecode} from 'jwt-decode';
 
 interface Instructor {
     id: string;
@@ -62,6 +63,7 @@ export interface Lecture{
     order: number;
     chapterId: string;
     lectureDuration: number;
+    requiresSubmission: boolean
 }
 const InstructorContextProvider = (props: InstructorContextProviderProps) => {
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:9000";
@@ -71,14 +73,26 @@ const InstructorContextProvider = (props: InstructorContextProviderProps) => {
     const router = useRouter();
     const [courses, setCourses] = useState<Course[]>([]);
     const REFRESH_INTERVAL = 30000;
+
     useEffect(() => {
-        const storedToken = localStorage.getItem('token');
-        if (storedToken) {
-            setInstructorToken(storedToken);
-            setIsInstructorAuthenticated(true);
-            Cookies.set('token', storedToken, { expires: 7 });
+        if (!instructorToken) {
+            const storedToken = localStorage.getItem('token');
+            if (storedToken) {
+                const decodedToken: any = jwtDecode(storedToken);
+                if (decodedToken.exp * 1000 < Date.now()) {
+                    instructorLogout();
+                } else {
+                    setInstructorToken(storedToken);
+                    setIsInstructorAuthenticated(true);
+                    Cookies.set('token', storedToken, { expires: 7 });
+                }
+            }
         }
-    }, []);
+        else {
+            getInstructorData(instructorToken);
+            getCourses(instructorToken);
+        }
+    }, [instructorToken]);
 
     const handleSetInstructorToken = (newToken: string) => {
         setInstructorToken(newToken);
@@ -121,19 +135,26 @@ const InstructorContextProvider = (props: InstructorContextProviderProps) => {
     const refreshInstructorData = async (): Promise<Instructor | null> => {
         return await getInstructorData();
     };
-    const getCourses = async () => {
+
+    const getCourses = async (currentToken: string = instructorToken) => {
+        if (!currentToken) return;
+
         try {
             const response = await axios.get(`${backendUrl}/ins/getInstructorCourses`, {
                 headers: {
-                    token: instructorToken
+                    token: currentToken
                 }
-            })
+            });
             setCourses(response.data);
-        } catch (e) {
+        } catch (e:any) {
             console.error("Failed to fetch instructor courses:", e);
+            if (e.response && e.response.status === 401) {
+                instructorLogout();
+            }
             setCourses([]);
         }
-    }
+    };
+
     useEffect(() => {
         if (instructorToken) {
             getInstructorData();

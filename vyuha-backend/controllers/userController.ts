@@ -4,10 +4,9 @@ import {
     getUser,
     getUsers,
     setEnrollment,
-    updateUserPhoto
+    updateUserPhoto,getCourses
 } from "../services/userService";
 import { Request, Response } from "express";
-import {getCourses} from "../services/courseService";
 
 export const getUserController = (req: Request, res: Response) => {
     const { id } = req.body;

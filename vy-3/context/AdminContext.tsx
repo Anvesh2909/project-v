@@ -3,6 +3,7 @@ import { createContext, ReactNode, useState, useEffect } from "react";
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
 import axios from "axios";
+import {jwtDecode} from 'jwt-decode';
 
 interface Admin {
     name: string;
@@ -51,28 +52,39 @@ const AdminContextProvider = (props: AdminContextProviderProps) => {
     const router = useRouter();
     const [users, setUsers] = useState<User[]>([]);
     const [courses, setCourses] = useState<Course[]>([]);
+
     useEffect(() => {
         const storedToken = localStorage.getItem('token');
         if (storedToken) {
-            setAdminToken(storedToken);
-            setIsAdminAuthenticated(true);
-            Cookies.set('token', storedToken, { expires: 7 });
-            getUsers();
-            getCourses();
+            const decodedToken: any = jwtDecode(storedToken);
+            if (decodedToken.exp * 1000 < Date.now()) {
+                adminLogout();
+            } else {
+                setAdminToken(storedToken);
+                setIsAdminAuthenticated(true);
+                Cookies.set('token', storedToken, { expires: 7 });
+                getUsers();
+                getCourses();
+            }
         }
     }, []);
+
     const getUsers = async () => {
-        try{
+        try {
             const response = await axios.get(`${backendUrl}/admin/getUsers`, {
                 headers: {
                     token: adminToken
                 }
-            })
+            });
             setUsers(response.data);
-        }catch (e) {
+        } catch (e:any) {
             console.error("Failed to fetch users:", e);
+            if (e.response && e.response.status === 401) {
+                adminLogout();
+            }
         }
-    }
+    };
+
     const handleSetAdminToken = (newToken: string) => {
         setAdminToken(newToken);
         setIsAdminAuthenticated(true);
@@ -89,20 +101,23 @@ const AdminContextProvider = (props: AdminContextProviderProps) => {
         Cookies.remove('token');
         router.push('/admin/sign-in');
     };
+
     const getCourses = async () => {
-        try{
+        try {
             const response = await axios.get(`${backendUrl}/admin/getCourses`, {
                 headers: {
                     token: adminToken
                 }
-            })
-            console.log(response);
-            console.log("Courses:", response.data);
+            });
             setCourses(response.data);
-        }catch (e) {
+        } catch (e:any) {
             console.error("Failed to fetch courses:", e);
+            if (e.response && e.response.status === 401) {
+                adminLogout();
+            }
         }
-    }
+    };
+
     const value = {
         backendUrl,
         adminData,
@@ -110,7 +125,10 @@ const AdminContextProvider = (props: AdminContextProviderProps) => {
         setAdminToken: handleSetAdminToken,
         adminToken,
         isAdminAuthenticated,
-        adminLogout,users,courses, setCourses
+        adminLogout,
+        users,
+        courses,
+        setCourses
     };
 
     return (
@@ -119,4 +137,5 @@ const AdminContextProvider = (props: AdminContextProviderProps) => {
         </AdminContext.Provider>
     );
 };
+
 export default AdminContextProvider;

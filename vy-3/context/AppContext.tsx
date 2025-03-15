@@ -1,8 +1,8 @@
-"use client"
 import { createContext, ReactNode, useState, useEffect } from "react";
 import axios from "axios";
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
+import { jwtDecode } from "jwt-decode";
 
 export interface Course {
     id: string;
@@ -17,12 +17,14 @@ export interface Course {
     enrollments: Enrollment[];
     difficulty: string;
 }
+
 interface Enrollment {
     id: string;
     studentId: string;
     courseId: string;
     progress: number;
 }
+
 export interface Chapter {
     chapterId: string;
     title: string;
@@ -38,6 +40,7 @@ export interface Lecture {
     order: number;
     chapterId: string;
     lectureDuration: number;
+    requiresSubmission: boolean;
 }
 
 interface User {
@@ -70,7 +73,8 @@ interface AppContextType {
     logout: () => void;
     refreshData: () => Promise<User | null>;
     courses: Course[];
-    fetchCourses: () => void;
+    fetchCourses: () => Promise<void>;
+    refreshCourses: () => Promise<void>;
     getEnrollments: () => Promise<void>;
     enrollments: Enrollment[];
 }
@@ -89,7 +93,8 @@ const AppContextProvider = (props: AppContextProviderProps) => {
     const router = useRouter();
     const [courses, setCourses] = useState<Course[]>([]);
     const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
-    const REFRESH_INTERVAL = 30000;
+    const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
     useEffect(() => {
         const storedToken = localStorage.getItem('token');
         if (storedToken) {
@@ -99,20 +104,27 @@ const AppContextProvider = (props: AppContextProviderProps) => {
         }
     }, []);
 
+    const isTokenExpired = (token: string) => {
+        const decoded: any = jwtDecode(token);
+        if (decoded.exp * 1000 < Date.now()) {
+            logout();
+            return true;
+        }
+        return false;
+    };
+
     const fetchCourses = async (currentToken: string = token) => {
-        if (!currentToken) return;
+        if (!currentToken || isTokenExpired(currentToken)) return;
 
         try {
             const response = await axios.get(`${backendUrl}/api/getCourses`, {
-                headers: {
-                    token: currentToken
-                }
+                headers: { token: currentToken }
             });
             setCourses(response.data);
         } catch (e) {
             console.error("Error fetching courses:", e);
         }
-    }
+    };
 
     const handleSetToken = (newToken: string) => {
         setToken(newToken);
@@ -133,64 +145,30 @@ const AppContextProvider = (props: AppContextProviderProps) => {
     };
 
     const getData = async (currentToken: string = token): Promise<User | null> => {
-        if (!currentToken) return null;
+        if (!currentToken || isTokenExpired(currentToken)) return null;
 
         try {
             const response = await axios.get(`${backendUrl}/api/getProfile`, {
-                headers: {
-                    token: currentToken
-                }
+                headers: { token: currentToken }
             });
             setData(response.data);
             return response.data;
         } catch (e) {
             console.error(e);
-            if (axios.isAxiosError(e) && e.response?.status === 401) {
+            if (axios.isAxiosError(e) && (e.response?.status === 401 || e.response?.status === 403)) {
                 logout();
             }
             return null;
         }
     };
 
-    const refreshData = async (): Promise<User | null> => {
-        return await getData();
-    };
+    const getEnrollments = async (currentToken: string = token) => {
+        if (!currentToken || isTokenExpired(currentToken)) return;
 
-    useEffect(() => {
-        if (token) {
-            getData();
-            fetchCourses(token);
-            getEnrollments();
-        }
-    }, [token]);
-
-    useEffect(() => {
-        let intervalId: NodeJS.Timeout;
-
-        if (token) {
-            intervalId = setInterval(() => {
-                getData();
-                fetchCourses(token);
-                getEnrollments();
-            }, REFRESH_INTERVAL);
-        }
-
-        return () => {
-            if (intervalId) {
-                clearInterval(intervalId);
-            }
-        };
-    }, [token]);
-
-    const getEnrollments = async () => {
-        if (!token) return;
         try {
             const response = await axios.get(`${backendUrl}/api/getEnrollments`, {
-                headers: {
-                    token
-                }
+                headers: { token: currentToken }
             });
-            console.log("Fetched enrollments:", response.data);
             setData((prevData) => {
                 if (prevData) {
                     return {
@@ -204,7 +182,34 @@ const AppContextProvider = (props: AppContextProviderProps) => {
         } catch (e) {
             console.error("Error fetching enrollments:", e);
         }
-    }
+    };
+
+    const refreshData = async (): Promise<User | null> => {
+        return await getData();
+    };
+
+    const refreshCourses = async (): Promise<void> => {
+        await fetchCourses();
+        await getEnrollments();
+    };
+
+    useEffect(() => {
+        if (token) {
+            getData();
+            fetchCourses(token);
+            getEnrollments(token);
+            const profileIntervalId = setInterval(() => {
+                getData();
+            }, REFRESH_INTERVAL);
+            const coursesIntervalId = setInterval(() => {
+                refreshCourses();
+            }, REFRESH_INTERVAL * 2);
+            return () => {
+                clearInterval(profileIntervalId);
+                clearInterval(coursesIntervalId);
+            };
+        }
+    }, [token]);
 
     const value = {
         backendUrl,
@@ -217,6 +222,7 @@ const AppContextProvider = (props: AppContextProviderProps) => {
         refreshData,
         courses,
         fetchCourses,
+        refreshCourses,
         getEnrollments,
         enrollments
     };

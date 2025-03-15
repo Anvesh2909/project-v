@@ -73,3 +73,17 @@ export const getLectures = async (chapterId: string) => {
         where: { chapterId },
     });
 }
+export const getCourses = async () => {
+    return prisma.course.findMany({
+        include: {
+            courseContent: {
+                orderBy: { chapterOrder: 'asc' },
+                include: {
+                    content: {
+                        orderBy: { order: 'asc' },
+                    },
+                },
+            },
+        },
+    });
+}

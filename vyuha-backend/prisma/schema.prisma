@@ -89,15 +89,17 @@ model Chapter {
 }
 
 model Lecture {
-  id              String  @id
-  title           String
-  lectureDuration Int
-  order           Int
-  content         String
-  chapter         Chapter @relation(fields: [chapterId], references: [chapterId])
-  chapterId       String
-  resourceType    String
-  resourceUrl     String?
+  id                 String  @id
+  title              String
+  lectureDuration    Int
+  order              Int
+  content            String
+  chapter            Chapter @relation(fields: [chapterId], references: [chapterId])
+  chapterId          String
+  resourceType       String
+  resourceUrl        String?
+  flag               Boolean @default(false)
+  requiresSubmission Boolean @default(false)
 }
 
 model Enrollment {

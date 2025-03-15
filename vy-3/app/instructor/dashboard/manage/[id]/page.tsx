@@ -27,6 +27,7 @@ const ManageCoursePage = () => {
     const [newLectureVideo, setNewLectureVideo] = useState<File | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedLecture, setSelectedLecture] = useState<Lecture | null>(null);
+    const [requiresSubmission, setRequiresSubmission] = useState(false);
     const handleViewLectureDetails = (lecture: Lecture) => {
         setSelectedLecture(lecture);
         setIsModalOpen(true);
@@ -43,23 +44,9 @@ const ManageCoursePage = () => {
                     headers: { token: instructorToken }
                 });
                 setCourse(courseResponse.data);
-
-                const chaptersResponse = await axios.get(`${backendUrl}/ins/getChapters`, {
-                    params: { courseId },
-                    headers: { token: instructorToken }
-                });
-
-                const chaptersData = chaptersResponse.data.filter((chapter: Chapter) => chapter.courseId === courseId);
-
-                const chaptersWithLectures = await Promise.all(chaptersData.map(async (chapter: Chapter) => {
-                    const lectures = await getLectures(chapter.chapterId);
-                    return {
-                        ...chapter,
-                        content: lectures
-                    };
-                }));
-
-                setChapters(chaptersWithLectures);
+                if (courseResponse.data?.courseContent) {
+                    setChapters(courseResponse.data.courseContent);
+                }
             } catch (error) {
                 console.error("Error fetching course data:", error);
             } finally {
@@ -70,8 +57,7 @@ const ManageCoursePage = () => {
         if (courseId && instructorToken) {
             fetchCourseData();
         }
-    }, [courseId, instructorToken, backendUrl, reloadTrigger]);
-
+    }, [courseId, instructorToken]);
     const handleAddChapter = async () => {
         if (!newChapterTitle.trim()) return alert("Please enter a chapter title");
         try {
@@ -90,23 +76,6 @@ const ManageCoursePage = () => {
             console.error("Error adding chapter:", e);
         }
     };
-    const getLectures = async (chapterId: string) => {
-        try {
-            if (!chapterId) return [];
-
-            const response = await axios.get(`${backendUrl}/ins/getLectures`, {
-                params: { chapterId },
-                headers: { token: instructorToken }
-            });
-
-            const lectures = response.data.filter((lecture: Lecture) => lecture.chapterId === chapterId);
-
-            return lectures;
-        } catch (error) {
-            console.error("Error fetching lectures:", error);
-            return [];
-        }
-    };
     const handleAddLecture = async () => {
         const isValid = newLectureTitle.trim() && newLectureContent.trim() && selectedChapter &&
             ((resourceType === 'link' && resourceUrl.trim()) ||
@@ -120,6 +89,7 @@ const ManageCoursePage = () => {
         formData.append('chapterId', selectedChapter);
         formData.append('content', newLectureContent);
         formData.append('resourceType', resourceType);
+        formData.append('requiresSubmission', requiresSubmission.toString());
 
         if (resourceType === 'link') {
             formData.append('resourceUrl', resourceUrl);
@@ -140,6 +110,7 @@ const ManageCoursePage = () => {
             setNewLectureDuration(0);
             setResourceUrl('');
             setNewLectureVideo(null);
+            setRequiresSubmission(false);
             setReloadTrigger(prev => prev + 1);
         } catch (e: any) {
             console.error("Error adding lecture:", e.response?.data || e.message);
@@ -314,6 +285,23 @@ const ManageCoursePage = () => {
                             </div>
                         )}
                     </div>
+                    <div className="mb-4">
+                        <div className="flex items-center">
+                            <input
+                                id="requires-submission"
+                                type="checkbox"
+                                checked={requiresSubmission}
+                                onChange={(e) => setRequiresSubmission(e.target.checked)}
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                            <label htmlFor="requires-submission" className="ml-2 block text-sm text-gray-700">
+                                Requires submission from students
+                            </label>
+                        </div>
+                        <p className="mt-1 text-xs text-gray-500">
+                            Enable this if students need to submit work for this lecture
+                        </p>
+                    </div>
                     <div>
                         <div className="mb-4">
                             <label className="block mb-2 font-medium text-gray-700">Lecture Content</label>
@@ -445,6 +433,13 @@ const ManageCoursePage = () => {
                                                     </a>
                                                 </div>
                                             )}
+                                            {/* Add this inside the lecture details modal */}
+                                            <div>
+                                                <h4 className="text-sm font-medium text-gray-500">Submission Required</h4>
+                                                <p className="mt-1 text-base">
+                                                    {selectedLecture.requiresSubmission ? "Yes" : "No"}
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

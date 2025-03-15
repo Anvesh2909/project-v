@@ -5,6 +5,7 @@ import AppProviders from "@/app/AppProvider";
 import AdminProviders from "@/app/AdminProvider";
 import InstructorProviders from "@/app/InstructorProvider";
 import MentorProviders from "@/app/MentorProvider";
+
 export const metadata: Metadata = {
     title: 'Lurnex',
     description: 'A NextGen LMS',
@@ -14,11 +15,11 @@ export const metadata: Metadata = {
 export default function Layout({ children }: { children: ReactNode }) {
     return (
         <html lang="en">
-        <body >
+        <body>
         <div className="main">
             <div className="gradient"></div>
         </div>
-        <main className="app">
+        <main className="app-full">
             <AdminProviders>
                 <InstructorProviders>
                     <MentorProviders>

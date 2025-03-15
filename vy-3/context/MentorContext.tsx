@@ -3,6 +3,7 @@ import { createContext, ReactNode, useState, useEffect } from "react";
 import axios from "axios";
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
+import {jwtDecode} from 'jwt-decode';
 
 interface Mentor {
     id: string;
@@ -41,9 +42,15 @@ const MentorContextProvider = (props: MentorContextProviderProps) => {
     useEffect(() => {
         const storedToken = localStorage.getItem('token');
         if (storedToken) {
-            setMentorToken(storedToken);
-            setIsMentorAuthenticated(true);
-            Cookies.set('token', storedToken, { expires: 7 });
+            const decodedToken: any = jwtDecode(storedToken);
+            if (decodedToken.exp * 1000 < Date.now()) {
+                mentorLogout();
+            } else {
+                setMentorToken(storedToken);
+                setIsMentorAuthenticated(true);
+                Cookies.set('token', storedToken, { expires: 7 });
+                getMentorData(storedToken);
+            }
         }
     }, []);
 
@@ -67,8 +74,22 @@ const MentorContextProvider = (props: MentorContextProviderProps) => {
 
     const getMentorData = async (currentToken: string = mentorToken): Promise<Mentor | null> => {
         if (!currentToken) return null;
-        return null;
 
+        try {
+            const response = await axios.get(`${backendUrl}/mentor/getMentorProfile`, {
+                headers: {
+                    token: currentToken
+                }
+            });
+            setMentorData(response.data);
+            return response.data;
+        } catch (e) {
+            console.error(e);
+            if (axios.isAxiosError(e) && e.response?.status === 401) {
+                mentorLogout();
+            }
+            return null;
+        }
     };
 
     const refreshMentorData = async (): Promise<Mentor | null> => {
