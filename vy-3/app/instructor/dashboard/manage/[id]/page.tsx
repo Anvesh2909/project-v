@@ -3,8 +3,11 @@ import React, { useState, useEffect, useContext } from 'react';
 import { useParams } from 'next/navigation';
 import axios from 'axios';
 import { InstructorContext } from '@/context/InstructorContext';
-import { Chapter,Lecture } from '@/context/InstructorContext';
-
+enum ResourceType {
+    LINK = "LINK",
+    VIDEO = "VIDEO",
+    DOCUMENT = "DOCUMENT"
+}
 const ManageCoursePage = () => {
     const params = useParams();
     const courseId = params.id as string;
@@ -14,28 +17,30 @@ const ManageCoursePage = () => {
     }
     const { backendUrl, instructorToken } = context;
     const [course, setCourse] = useState<any>(null);
-    const [chapters, setChapters] = useState<Chapter[]>([]);
+    const [chapters, setChapters] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [reloadTrigger, setReloadTrigger] = useState(0);
     const [newChapterTitle, setNewChapterTitle] = useState('');
     const [selectedChapter, setSelectedChapter] = useState('');
     const [newLectureTitle, setNewLectureTitle] = useState('');
-    const [newLectureContent, setNewLectureContent] = useState('');
     const [newLectureDuration, setNewLectureDuration] = useState(0);
-    const [resourceType, setResourceType] = useState('link');
+    const [resourceType, setResourceType] = useState<ResourceType>(ResourceType.LINK);
     const [resourceUrl, setResourceUrl] = useState('');
     const [newLectureVideo, setNewLectureVideo] = useState<File | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [selectedLecture, setSelectedLecture] = useState<Lecture | null>(null);
+    const [selectedLecture, setSelectedLecture] = useState<any>(null);
     const [requiresSubmission, setRequiresSubmission] = useState(false);
-    const handleViewLectureDetails = (lecture: Lecture) => {
+
+    const handleViewLectureDetails = (lecture: any) => {
         setSelectedLecture(lecture);
         setIsModalOpen(true);
     };
+
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setSelectedLecture(null);
     };
+
     useEffect(() => {
         const fetchCourseData = async () => {
             try {
@@ -57,16 +62,17 @@ const ManageCoursePage = () => {
         if (courseId && instructorToken) {
             fetchCourseData();
         }
-    }, [courseId, instructorToken]);
+    }, [courseId, instructorToken, reloadTrigger, backendUrl]);
+
     const handleAddChapter = async () => {
         if (!newChapterTitle.trim()) return alert("Please enter a chapter title");
         try {
             const maxChapterOrder = chapters?.reduce((max, chapter) =>
-                Math.max(max, chapter?.content?.length || 0), 0) || 0;
+                Math.max(max, chapter.order || 0), 0) || 0;
             await axios.post(`${backendUrl}/ins/createChapter`, {
                 courseId,
                 title: newChapterTitle,
-                chapterOrder: maxChapterOrder + 1
+                order: maxChapterOrder + 1
             }, {
                 headers: { token: instructorToken }
             });
@@ -76,10 +82,11 @@ const ManageCoursePage = () => {
             console.error("Error adding chapter:", e);
         }
     };
+
     const handleAddLecture = async () => {
-        const isValid = newLectureTitle.trim() && newLectureContent.trim() && selectedChapter &&
-            ((resourceType === 'link' && resourceUrl.trim()) ||
-                (resourceType !== 'link' && newLectureVideo));
+        const isValid = newLectureTitle.trim() && selectedChapter &&
+            ((resourceType === ResourceType.LINK && resourceUrl.trim()) ||
+                (resourceType !== ResourceType.LINK && newLectureVideo));
 
         if (!isValid) return alert("Please fill all required fields");
 
@@ -87,11 +94,10 @@ const ManageCoursePage = () => {
         formData.append('title', newLectureTitle);
         formData.append('lectureDuration', newLectureDuration.toString());
         formData.append('chapterId', selectedChapter);
-        formData.append('content', newLectureContent);
-        formData.append('resourceType', resourceType);
+        formData.append('resourceType', resourceType); // This should match backend enum
         formData.append('requiresSubmission', requiresSubmission.toString());
 
-        if (resourceType === 'link') {
+        if (resourceType === ResourceType.LINK) {
             formData.append('resourceUrl', resourceUrl);
         } else if (newLectureVideo) {
             formData.append('file', newLectureVideo);
@@ -106,7 +112,6 @@ const ManageCoursePage = () => {
             });
 
             setNewLectureTitle('');
-            setNewLectureContent('');
             setNewLectureDuration(0);
             setResourceUrl('');
             setNewLectureVideo(null);
@@ -132,8 +137,8 @@ const ManageCoursePage = () => {
             <div className="flex items-center justify-between mb-8">
                 <h1 className="text-3xl font-bold text-gray-800">{course?.title || 'Course Management'}</h1>
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${course?.isApproved ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-        {course?.isApproved ? 'Approved' : 'Pending Approval'}
-      </span>
+                    {course?.isApproved ? 'Approved' : 'Pending Approval'}
+                </span>
             </div>
             <div className="mb-8 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                 <h2 className="text-xl font-semibold mb-4 pb-2 border-b border-gray-200">Course Details</h2>
@@ -158,6 +163,9 @@ const ManageCoursePage = () => {
                         <p className="text-gray-700"><span className="font-medium text-gray-900">Description:</span> {course?.description}</p>
                         {course?.price !== undefined && <p className="text-gray-700"><span className="font-medium text-gray-900">Price:</span> ${course.price}</p>}
                         {course?.category && <p className="text-gray-700"><span className="font-medium text-gray-900">Category:</span> {course.category}</p>}
+                        {course?.courseType && <p className="text-gray-700"><span className="font-medium text-gray-900">Type:</span> {course.courseType}</p>}
+                        {course?.difficulty && <p className="text-gray-700"><span className="font-medium text-gray-900">Difficulty:</span> {course.difficulty}</p>}
+                        {course?.duration && <p className="text-gray-700"><span className="font-medium text-gray-900">Duration:</span> {course.duration}</p>}
                     </div>
                 </div>
             </div>
@@ -191,8 +199,8 @@ const ManageCoursePage = () => {
                             className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                             <option value="">Select a chapter</option>
-                            {chapters.map(chapter => (
-                                <option key={chapter.chapterId} value={chapter.chapterId}>
+                            {chapters.map((chapter: any) => (
+                                <option key={chapter.id} value={chapter.id}>
                                     {chapter.title}
                                 </option>
                             ))}
@@ -231,16 +239,16 @@ const ManageCoursePage = () => {
                             <label className="block mb-2 font-medium text-gray-700">Resource Type</label>
                             <select
                                 value={resourceType}
-                                onChange={(e) => setResourceType(e.target.value)}
+                                onChange={(e) => setResourceType(e.target.value as ResourceType)}
                                 className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             >
-                                <option value="link">External Link</option>
-                                <option value="video">Upload Video</option>
-                                <option value="document">Upload Document</option>
+                                <option value={ResourceType.LINK}>External Link</option>
+                                <option value={ResourceType.VIDEO}>Upload Video</option>
+                                <option value={ResourceType.DOCUMENT}>Upload Document</option>
                             </select>
                         </div>
 
-                        {resourceType === 'link' ? (
+                        {resourceType === ResourceType.LINK ? (
                             <div className="mb-4">
                                 <label className="block mb-2 font-medium text-gray-700">Resource URL</label>
                                 <input
@@ -254,7 +262,7 @@ const ManageCoursePage = () => {
                         ) : (
                             <div className="mb-4">
                                 <label className="block mb-2 font-medium text-gray-700">
-                                    Upload {resourceType === 'video' ? 'Video' : 'Document'}
+                                    Upload {resourceType === ResourceType.VIDEO ? 'Video' : 'Document'}
                                 </label>
                                 <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
                                     <div className="space-y-1 text-center">
@@ -271,52 +279,42 @@ const ManageCoursePage = () => {
                                                     type="file"
                                                     className="sr-only"
                                                     onChange={handleFileChange}
-                                                    accept={resourceType === 'video' ? 'video/*' : 'application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'}
+                                                    accept={resourceType === ResourceType.VIDEO ? 'video/*' : 'application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'}
                                                 />
                                             </label>
                                             <p className="pl-1">or drag and drop</p>
                                         </div>
                                         <p className="text-xs text-gray-500">
-                                            {resourceType === 'video' ? 'MP4, WebM up to 100MB' : 'PDF, DOC, DOCX up to 10MB'}
+                                            {resourceType === ResourceType.VIDEO? 'MP4, WebM up to 100MB' : 'PDF, DOC, DOCX up to 10MB'}
                                         </p>
                                         {newLectureVideo && <p className="text-sm text-green-600">{newLectureVideo.name}</p>}
                                     </div>
                                 </div>
                             </div>
                         )}
-                    </div>
-                    <div className="mb-4">
-                        <div className="flex items-center">
-                            <input
-                                id="requires-submission"
-                                type="checkbox"
-                                checked={requiresSubmission}
-                                onChange={(e) => setRequiresSubmission(e.target.checked)}
-                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                            />
-                            <label htmlFor="requires-submission" className="ml-2 block text-sm text-gray-700">
-                                Requires submission from students
-                            </label>
+
+                        <div className="mb-4">
+                            <div className="flex items-center">
+                                <input
+                                    id="requires-submission"
+                                    type="checkbox"
+                                    checked={requiresSubmission}
+                                    onChange={(e) => setRequiresSubmission(e.target.checked)}
+                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                />
+                                <label htmlFor="requires-submission" className="ml-2 block text-sm text-gray-700">
+                                    Requires submission from students
+                                </label>
+                            </div>
+                            <p className="mt-1 text-xs text-gray-500">
+                                Enable this if students need to submit work for this lecture
+                            </p>
                         </div>
-                        <p className="mt-1 text-xs text-gray-500">
-                            Enable this if students need to submit work for this lecture
-                        </p>
                     </div>
                     <div>
-                        <div className="mb-4">
-                            <label className="block mb-2 font-medium text-gray-700">Lecture Content</label>
-                            <textarea
-                                value={newLectureContent}
-                                onChange={(e) => setNewLectureContent(e.target.value)}
-                                className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                rows={7}
-                                placeholder="Enter lecture description or content"
-                            ></textarea>
-                        </div>
-
                         <button
                             onClick={handleAddLecture}
-                            className="w-full mt-4 px-4 py-3 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                            className="w-full mt-4 px-4 py-3 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                         >
                             Add Lecture
                         </button>
@@ -335,39 +333,39 @@ const ManageCoursePage = () => {
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        {chapters.map((chapter, index) => (
-                            <div key={chapter.chapterId} className="border border-gray-200 rounded-lg overflow-hidden">
+                        {chapters.map((chapter: any, index: number) => (
+                            <div key={chapter.id} className="border border-gray-200 rounded-lg overflow-hidden">
                                 <div className="bg-gray-50 px-4 py-3 flex justify-between items-center">
                                     <h3 className="text-lg font-medium text-gray-800">
                                         <span className="mr-2 inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-800 text-sm">{index + 1}</span>
                                         {chapter.title}
                                     </h3>
                                     <span className="text-sm text-gray-500">
-                  {chapter.content?.length || 0} lecture{chapter.content?.length !== 1 ? 's' : ''}
-                </span>
+                                        {chapter.lectures?.length || 0} lecture{chapter.lectures?.length !== 1 ? 's' : ''}
+                                    </span>
                                 </div>
 
-                                {chapter.content && chapter.content.length > 0 ? (
+                                {chapter.lectures && chapter.lectures.length > 0 ? (
                                     <ul className="divide-y divide-gray-200">
-                                        {chapter.content.map((lecture: Lecture, lectureIndex: number) => (
-                                            <li key={lecture.id}
+                                        {chapter.lectures.map((lecture: any, lectureIndex: number) => (
+                                            <li key={lecture.id || `lecture-${lectureIndex}`}
                                                 className="flex items-center p-4 hover:bg-gray-50 cursor-pointer"
                                                 onClick={() => handleViewLectureDetails(lecture)}>
                                                 <div className="mr-4 text-gray-500 flex-shrink-0">
-            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-200 text-gray-600 text-xs">
-                {lectureIndex + 1}
-            </span>
+                                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-200 text-gray-600 text-xs">
+                                                        {lectureIndex + 1}
+                                                    </span>
                                                 </div>
                                                 <div className="flex-1">
                                                     <h4 className="text-md font-medium">{lecture.title}</h4>
                                                     <div className="mt-1 flex items-center">
-                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                    lecture.resourceType === 'video' ? 'bg-red-100 text-red-800' :
-                        lecture.resourceType === 'document' ? 'bg-purple-100 text-purple-800' :
-                            'bg-blue-100 text-blue-800'
-                }`}>
-    {lecture.resourceType}
-</span>
+                                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                                            lecture.resourceType === 'video' ? 'bg-red-100 text-red-800' :
+                                                                lecture.resourceType === 'document' ? 'bg-purple-100 text-purple-800' :
+                                                                    'bg-blue-100 text-blue-800'
+                                                        }`}>
+                                                            {lecture.resourceType}
+                                                        </span>
                                                     </div>
                                                 </div>
                                                 <div className="flex-shrink-0 text-gray-500">
@@ -386,7 +384,6 @@ const ManageCoursePage = () => {
                     </div>
                 )}
             </div>
-            {/* Lecture Details Modal */}
             {isModalOpen && selectedLecture && (
                 <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
                     <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
@@ -420,7 +417,7 @@ const ManageCoursePage = () => {
                                                 <p className="mt-1 text-base capitalize">{selectedLecture.resourceType}</p>
                                             </div>
 
-                                            {selectedLecture.resourceType === 'link' && selectedLecture.resourceUrl && (
+                                            {selectedLecture.resourceUrl && (
                                                 <div>
                                                     <h4 className="text-sm font-medium text-gray-500">Resource URL</h4>
                                                     <a
@@ -433,7 +430,7 @@ const ManageCoursePage = () => {
                                                     </a>
                                                 </div>
                                             )}
-                                            {/* Add this inside the lecture details modal */}
+
                                             <div>
                                                 <h4 className="text-sm font-medium text-gray-500">Submission Required</h4>
                                                 <p className="mt-1 text-base">
@@ -460,4 +457,5 @@ const ManageCoursePage = () => {
         </div>
     );
 };
+
 export default ManageCoursePage;

@@ -12,25 +12,39 @@ const Page = () => {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState(false)
+    const [userType, setUserType] = useState('student')
 
     const [formData, setFormData] = useState({
         name: '',
         password: '',
         collegeId: ''
     })
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value
-        })
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        if (e.target.name === 'userType') {
+            setUserType(e.target.value)
+        } else {
+            setFormData({
+                ...formData,
+                [e.target.name]: e.target.value
+            })
+        }
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
         setError(null)
+
+        // Determine endpoint based on user type
+        const endpoint = userType === 'student'
+            ? '/admin/addUser'
+            : userType === 'instructor'
+                ? '/admin/addInstructor'
+                : '/admin/addMentor'
+
         try {
-            await axios.post(`${context?.backendUrl}/admin/addUser`, {
+            await axios.post(`${context?.backendUrl}${endpoint}`, {
                 name: formData.name,
                 password: formData.password,
                 uniId: formData.collegeId
@@ -83,6 +97,23 @@ const Page = () => {
             <div className="bg-white shadow-lg rounded-xl overflow-hidden border p-6">
                 <form onSubmit={handleSubmit}>
                     <div className="space-y-5">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="userType">
+                                User Type
+                            </label>
+                            <select
+                                id="userType"
+                                name="userType"
+                                value={userType}
+                                onChange={handleChange}
+                                className="w-full p-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none transition-all"
+                            >
+                                <option value="student">Student</option>
+                                <option value="instructor">Instructor</option>
+                                <option value="mentor">Mentor</option>
+                            </select>
+                        </div>
+
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="name">
                                 Full Name
@@ -141,9 +172,9 @@ const Page = () => {
                                 {loading ? (
                                     <>
                                         <Loader2 className="animate-spin h-5 w-5 mr-2" />
-                                        Creating User...
+                                        Creating {userType.charAt(0).toUpperCase() + userType.slice(1)}...
                                     </>
-                                ) : "Add User"}
+                                ) : `Add ${userType.charAt(0).toUpperCase() + userType.slice(1)}`}
                             </button>
                         </div>
                     </div>
@@ -152,5 +183,4 @@ const Page = () => {
         </div>
     )
 }
-
 export default Page

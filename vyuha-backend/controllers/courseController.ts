@@ -7,7 +7,6 @@ import {
     getInstructorCourses, getLectures
 } from "../services/courseService";
 import { Request, Response } from "express";
-
 export const createCourseController = async (req: Request, res: Response): Promise<void> => {
     const { title, description, id, courseType, duration, difficulty } = req.body;
     const image = req.file?.buffer;
@@ -76,11 +75,11 @@ export const addLectureController = async (req: Request, res: Response): Promise
     console.log("Body:", req.body);
     console.log("File:", req.file);
 
-    const { title, lectureDuration, order, chapterId, content, resourceType, resourceUrl, requiresSubmission } = req.body;
+    const { title, lectureDuration, order, chapterId, resourceType, resourceUrl, requiresSubmission } = req.body;
     const resource = req.file?.buffer;
     const mimetype = req.file?.mimetype;
 
-    if (!title || !lectureDuration || !chapterId || !content || !resourceType) {
+    if (!title || !lectureDuration || !chapterId || !resourceType) {
         console.log("❌ Missing required fields");
         res.status(400).json({ error: "Missing required fields" });
         return;
@@ -91,7 +90,6 @@ export const addLectureController = async (req: Request, res: Response): Promise
             title,
             lectureDuration: parseInt(lectureDuration, 10),
             chapterId,
-            content,
             resourceType,
             resource,
             mimetype,

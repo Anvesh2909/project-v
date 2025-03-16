@@ -76,7 +76,7 @@ const MentorContextProvider = (props: MentorContextProviderProps) => {
         if (!currentToken) return null;
 
         try {
-            const response = await axios.get(`${backendUrl}/mentor/getMentorProfile`, {
+            const response = await axios.get(`${backendUrl}/mtr/getMentor`, {
                 headers: {
                     token: currentToken
                 }

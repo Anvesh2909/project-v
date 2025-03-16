@@ -34,7 +34,7 @@ const CourseList = () => {
 
     return (
         <section className="py-16">
-            <div className=" mx-auto px-4">
+            <div className="max-w-6xl mx-auto px-4">
                 <h2 className="text-2xl font-bold text-blue-800 mb-8">
                     Top Courses
                 </h2>
@@ -73,7 +73,6 @@ const CourseList = () => {
                                     </div>
                                 </div>
                             </div>
-
                         </div>
                     ))}
                 </div>

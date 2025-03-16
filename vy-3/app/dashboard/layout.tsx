@@ -1,5 +1,5 @@
 import Sidebar from "@/components/Sidebar";
-
+import { NotificationProvider } from '@/context/NotificationContext';
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     return (
         <div className="flex h-screen ">
@@ -8,7 +8,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
             <div className="flex-1 overflow-auto">
                 <div className="w-full px-6">
-                    {children}
+                    <NotificationProvider>
+                        {children}
+                    </NotificationProvider>
                 </div>
             </div>
         </div>

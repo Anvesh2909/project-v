@@ -22,12 +22,13 @@ const ManageCoursesPage = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [filter, setFilter] = useState<'all' | 'published' | 'draft'>('all');
     const context = useContext(InstructorContext);
-
+    const instructorToken = context?.instructorToken;
+    const getCourses = context?.getCourses;
     useEffect(() => {
-        if (context) {
-            context.getCourses();
+        if(getCourses){
+            getCourses();
         }
-    }, [context]);
+    }, [instructorToken]);
 
     if (!context) {
         return (

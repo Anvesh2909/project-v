@@ -49,21 +49,25 @@ export interface Course {
     duration: string;
     difficulty: string;
 }
-export interface Chapter{
-    chapterId: string;
+export interface Chapter {
+    id: string;
+    order: number;
     title: string;
+    lectures: Lecture[];
     courseId: string;
-    content: Lecture[]
 }
-export interface Lecture{
+
+export interface Lecture {
     id: string;
     title: string;
-    resourceType: string;
-    resourceUrl: string;
+    duration: number;
     order: number;
     chapterId: string;
-    lectureDuration: number;
-    requiresSubmission: boolean
+    resourceType: string;
+    resourceUrl?: string;
+    flagged: boolean;
+    requiresSubmission: boolean;
+    lectureDuration?: number; // This seems redundant with duration
 }
 const InstructorContextProvider = (props: InstructorContextProviderProps) => {
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:9000";

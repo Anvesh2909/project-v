@@ -77,9 +77,9 @@ export const getCourses = async () => {
     return prisma.course.findMany({
         include: {
             courseContent: {
-                orderBy: { chapterOrder: 'asc' },
+                orderBy: { order: 'asc' },
                 include: {
-                    content: {
+                    lectures: {
                         orderBy: { order: 'asc' },
                     },
                 },

@@ -5,7 +5,7 @@ import VideoPlayer from "@/components/VideoPlayer";
 import { AppContext, Chapter, Lecture } from "@/context/AppContext";
 import { useParams } from 'next/navigation';
 import axios from "axios";
-
+import { useNotification } from '@/context/NotificationContext';
 const resourceUtils = {
     getIcon: (type: string) => {
         const icons = {
@@ -118,12 +118,12 @@ const CourseDetailsPage = () => {
     const [isEnrolling, setIsEnrolling] = useState(false);
     const [uploading, setUploading] = useState<string | null>(null);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
-
+    const { showNotification } = useNotification();
     useEffect(() => {
         if (token) {
             fetchCourses?.();
         }
-    }, [token, fetchCourses]);
+    }, [token]);
 
     const handleLessonClick = (lesson: Lecture) => {
         if (lesson.resourceType.toLowerCase() === 'video') {
@@ -140,8 +140,10 @@ const CourseDetailsPage = () => {
             setIsEnrolling(true);
             await axios.post(`${backendUrl}/api/enroll`, { courseId }, { headers: { token } });
             fetchCourses?.();
+            showNotification("Successfully enrolled in the course", "success");
         } catch (error) {
             console.error("Error enrolling in course:", error);
+            showNotification("Failed to enroll in the course", "error");
         } finally {
             setIsEnrolling(false);
         }
@@ -162,8 +164,10 @@ const CourseDetailsPage = () => {
                 headers: { token, 'Content-Type': 'multipart/form-data' }
             });
             setSelectedFile(null);
+            showNotification("Assignment submitted successfully", "success");
         } catch (error) {
             console.error("Error submitting assignment:", error);
+            showNotification("Failed to submit assignment", "error");
         } finally {
             setUploading(null);
         }
@@ -177,22 +181,22 @@ const CourseDetailsPage = () => {
     if (!courseDetails) {
         return <div className="flex justify-center items-center h-screen">Course not found</div>;
     }
-
+    console.log(courseDetails);
     const studentId = data?.id;
     const isEnrolled = enrollments?.some(e => e.studentId === studentId && e.courseId === courseId) || false;
     const enrollment = data.courses?.find(c => c.id === courseId)?.enrollments?.find(e => e.studentId === data.id);
     const progress = enrollment?.progress || 0;
 
-    // Extract chapters and lectures from courseDetails
     const chapters = courseDetails.courseContent || [];
 
     // Get all document resources from all chapters
-    const documentResources = chapters.flatMap(chapter =>
-        chapter.content?.filter(lecture =>
+    const documentResources = chapters.flatMap(chapter => {
+        const lecturesList = chapter.lectures || chapter.content || [];
+        return lecturesList.filter(lecture =>
             (lecture.resourceUrl || lecture.requiresSubmission) &&
             lecture.resourceType.toLowerCase() === 'document'
-        ) || []
-    );
+        );
+    });
 
     return (
         <div className="p-4 md:p-6 max-w-6xl mx-auto">
@@ -327,18 +331,18 @@ const CourseDetailsPage = () => {
                                 <div key={index} className="mb-8 last:mb-0">
                                     <div className="flex items-center justify-between mb-3">
                                         <h3 className="font-semibold text-md md:text-lg text-[#1E293B] flex items-center">
-                                            <span className="bg-[#EFF6FF] text-[#2563EB] w-6 h-6 rounded-full flex items-center justify-center text-xs mr-2">
-                                                {index + 1}
-                                            </span>
+                    <span className="bg-[#EFF6FF] text-[#2563EB] w-6 h-6 rounded-full flex items-center justify-center text-xs mr-2">
+                        {index + 1}
+                    </span>
                                             {chapter.title}
                                         </h3>
                                         <div className="text-xs font-medium text-[#64748B] bg-[#F1F5F9] px-3 py-1 rounded-full">
-                                            {chapter.content?.length || 0} lessons
+                                            {chapter.lectures?.length || 0} lessons
                                         </div>
                                     </div>
 
                                     <div className="space-y-2.5 border-l-2 border-[#E2E8F0] pl-4 ml-3">
-                                        {chapter.content?.map((lesson, lessonIndex) => (
+                                        {(chapter.lectures || chapter.content || []).map((lesson, lessonIndex) => (
                                             <LessonItem key={lessonIndex} lesson={lesson} onClick={handleLessonClick} />
                                         ))}
                                     </div>

@@ -32,7 +32,6 @@ export async function createCourse(data: {
     difficulty: DifficultyLevel,
 }) {
     try {
-        // Upload image to Supabase
         const bucketName = process.env.SUPABASE_BUCKET_NAME || "vyuha-uploads";
         const fileExtension = data.mimetype.split("/")[1];
         const filePath = `course/${data.instructorId}/${data.title}.${fileExtension}`;
@@ -88,7 +87,7 @@ export async function getCourse(id: string) {
             include: {
                 courseContent: {
                     include: {
-                        content: true,
+                        lectures: true,
                     },
                 },
             },
@@ -108,10 +107,10 @@ export async function addChapter(courseId: string, title: string, chapterOrder: 
         const chapterId = `${courseId}-CH${String(chapterOrder).padStart(2, '0')}`;
         const chapter = await prisma.chapter.create({
             data: {
-                chapterId,
+                id: chapterId,
                 title,
                 courseId,
-                chapterOrder
+                order: chapterOrder
             }
         });
         console.log("Chapter Created:", chapter);
@@ -125,27 +124,25 @@ export async function getChapters(courseId: string) {
     return prisma.chapter.findMany({
         where: { courseId },
         include: {
-            content: true
+            lectures: true
         },
-        orderBy: { chapterOrder: "asc" }
+        orderBy: { order: "asc" }
     });
 }
 export async function addLecture(data: {
     title: any;
     lectureDuration: number;
     chapterId: any;
-    content: any;
     resourceType: any;
     resource: Buffer<ArrayBufferLike> | undefined;
     mimetype: string | undefined;
     resourceUrl: any;
     requiresSubmission: boolean
 }) {
-    console.log("🔄 Processing new lecture with data:", data);
 
     try {
         const chapter = await prisma.chapter.findUnique({
-            where: { chapterId: data.chapterId }
+            where: { id: data.chapterId }
         });
         if (!chapter) {
             throw new Error("Chapter not found");
@@ -156,12 +153,10 @@ export async function addLecture(data: {
         });
         const order = existingLectures.length + 1;
         const lectureId = `${data.chapterId}-L${order}`;
-        console.log("📌 Generated Lecture ID:", lectureId);
 
         let resourceUrl = data.resourceUrl;
 
         if (!resourceUrl && data.resource && data.mimetype) {
-            console.log("🚀 Uploading to Supabase...");
             const bucketName = process.env.SUPABASE_BUCKET_NAME || "vyuha-uploads";
             const fileExtension = data.mimetype.split("/")[1];
             const filePath = `lecture/${data.chapterId}/${lectureId}.${fileExtension}`;
@@ -181,22 +176,19 @@ export async function addLecture(data: {
             if (!urlData) throw new Error("Failed to get public URL");
 
             resourceUrl = urlData.publicUrl;
-            console.log("✅ Resource uploaded. Public URL:", resourceUrl);
         }
         const lecture = await prisma.lecture.create({
             data: {
                 id: lectureId,
                 title: data.title,
-                lectureDuration: data.lectureDuration,
+                duration: data.lectureDuration,
                 order,
                 chapterId: data.chapterId,
-                content: data.content,
                 resourceType: data.resourceType,
                 resourceUrl,
                 requiresSubmission: data.requiresSubmission || false
             }
         });
-        console.log("🎉 Lecture created successfully:", lecture);
         return lecture;
     } catch (error) {
         console.error("❌ Error creating lecture:", error);
@@ -214,10 +206,10 @@ export async function getCourses() {
         include: {
             courseContent: {
                 include: {
-                    content: true,
+                    lectures: true,
                 },
                 orderBy: {
-                    chapterOrder: "asc"
+                    order: "asc"
                 }
             },
         },

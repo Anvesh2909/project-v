@@ -26,10 +26,13 @@ interface Enrollment {
 }
 
 export interface Chapter {
-    chapterId: string;
+    id: string;           // Changed from chapterId to id to match actual data
+    chapterId?: string;   // Keep for backward compatibility
     title: string;
     courseId: string;
-    content: Lecture[];
+    order: number;        // Added order property shown in data
+    content?: Lecture[];  // Keep existing field as optional
+    lectures?: Lecture[]; // Added lectures array to match actual data structure
 }
 
 export interface Lecture {
@@ -39,6 +42,7 @@ export interface Lecture {
     resourceUrl: string;
     order: number;
     chapterId: string;
+    duration?: number;           // Added duration as shown in data
     lectureDuration: number;
     requiresSubmission: boolean;
 }
@@ -93,7 +97,7 @@ const AppContextProvider = (props: AppContextProviderProps) => {
     const router = useRouter();
     const [courses, setCourses] = useState<Course[]>([]);
     const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
-    const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+    const REFRESH_INTERVAL = 5 * 60 * 1000;
 
     useEffect(() => {
         const storedToken = localStorage.getItem('token');
@@ -155,7 +159,7 @@ const AppContextProvider = (props: AppContextProviderProps) => {
             return response.data;
         } catch (e) {
             console.error(e);
-            if (axios.isAxiosError(e) && (e.response?.status === 401 || e.response?.status === 403)) {
+            if (axios.isAxiosError(e)) {
                 logout();
             }
             return null;

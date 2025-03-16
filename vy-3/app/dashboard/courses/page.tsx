@@ -23,7 +23,9 @@ const CoursesPage = () => {
             (course.instructorId && course.instructorId.toLowerCase().includes(searchTerm.toLowerCase()));
         const matchesType = filterType ? course.type === filterType : true;
         const matchesDifficulty = filterDifficulty ? course.difficulty === filterDifficulty : true;
-        return matchesSearch && matchesType && matchesDifficulty;
+        const isApproved = course.isApproved; // Only show approved courses
+
+        return matchesSearch && matchesType && matchesDifficulty && isApproved;
     });
 
     const courseTypes = Array.from(new Set(courses.map(course => course.type)));
@@ -60,7 +62,6 @@ const CoursesPage = () => {
                 </div>
             </div>
 
-            {/* Filter Section */}
             <div className="bg-white rounded-xl p-6 shadow-md border border-gray-200 mb-8">
                 <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-4">
                     <div className="flex items-center text-gray-700">
