@@ -1,10 +1,16 @@
 import {
     addChapter,
     addLecture,
-    createCourse,
+    createCourse, getAllStudentSubmissions,
+    getAssignments,
     getChapters,
     getCourse,
-    getInstructorCourses, getLectures
+    getInstructorCourses,
+    getInstructorSubmissions,
+    getLectures,
+    getStudentSubmissionsForCourse,
+    setAssignment, setGrade,
+    setSubmission
 } from "../services/courseService";
 import { Request, Response } from "express";
 export const createCourseController = async (req: Request, res: Response): Promise<void> => {
@@ -107,6 +113,82 @@ export const getLecturesController = async (req: Request, res: Response): Promis
     try {
         const response = await getLectures(chapterId);
         res.status(200).json(response);
+    } catch (error: any) {
+        res.status(400).json({ error: error.message });
+    }
+}
+export const setAssignmentController = async (req: Request, res: Response): Promise<void> => {
+    const { courseId, title, description, dueDate, maxMarks } = req.body;
+    try {
+        const response = await setAssignment({ courseId, title, description, dueDate, maxMarks });
+        res.status(200).json(response);
+    } catch (error: any) {
+        res.status(400).json({ error: error.message });
+    }
+}
+export const setSubmissionController = async (req: Request, res: Response): Promise<void> => {
+    const { assignmentId, studentId } = req.body;
+    const buffer = req.file?.buffer;
+    const mimetype = req.file?.mimetype;
+
+    if (!buffer || !mimetype) {
+        res.status(400).json({ error: "No file uploaded or invalid file type" });
+        return;
+    }
+
+    try {
+        const response = await setSubmission({
+            assignmentId,
+            studentId,
+            submission: {
+                buffer,
+                mimetype
+            }
+        });
+        res.status(200).json(response);
+    } catch (error: any) {
+        res.status(400).json({ error: error.message });
+    }
+}
+export const getAssignmentsController = async (req: Request, res: Response): Promise<void> => {
+    const { courseId } = req.params;
+    try {
+        const response = await getAssignments(courseId);
+        res.status(200).json(response);
+    } catch (error: any) {
+        res.status(400).json({ error: error.message });
+    }
+}
+
+
+export const getInstructorSubmissionsController = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.body.id;
+        if (!id) {
+            res.status(400).json({ error: "instructorId is required" });
+            return;
+        }
+        const assignments = await getInstructorSubmissions(id);
+        res.status(200).json(assignments);
+    } catch (error: any) {
+        res.status(400).json({ error: error.message });
+    }
+}
+export const setGradeController = async (req: Request, res: Response): Promise<void> => {
+    const { submissionId, marks, feedback } = req.body;
+    try {
+        const response = await setGrade({submissionId, marks, feedback});
+        res.status(200).json(response);
+    } catch (error: any) {
+        res.status(400).json({ error: error.message });
+    }
+}
+export const getSubmissionsController = async (req: Request, res: Response): Promise<void> => {
+    const studentId = req.body.id;
+
+    try {
+        const submissions = await getAllStudentSubmissions(studentId);
+        res.status(200).json(submissions);
     } catch (error: any) {
         res.status(400).json({ error: error.message });
     }

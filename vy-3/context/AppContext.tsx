@@ -26,13 +26,13 @@ interface Enrollment {
 }
 
 export interface Chapter {
-    id: string;           // Changed from chapterId to id to match actual data
-    chapterId?: string;   // Keep for backward compatibility
+    id: string;
+    chapterId?: string;
     title: string;
     courseId: string;
-    order: number;        // Added order property shown in data
-    content?: Lecture[];  // Keep existing field as optional
-    lectures?: Lecture[]; // Added lectures array to match actual data structure
+    order: number;
+    content?: Lecture[];
+    lectures?: Lecture[];
 }
 
 export interface Lecture {

@@ -116,6 +116,8 @@ model Chapter {
   lectures Lecture[]
   course   Course    @relation(fields: [courseId], references: [id])
   courseId String
+
+  Quiz Quiz[]
 }
 
 model Lecture {
@@ -129,6 +131,8 @@ model Lecture {
   resourceUrl        String?
   flagged            Boolean      @default(false)
   requiresSubmission Boolean      @default(false)
+
+  Quiz Quiz[]
 }
 
 model Enrollment {
@@ -154,23 +158,30 @@ model Assignment {
 }
 
 model Submission {
-  id           String      @id @default(uuid())
-  student      User        @relation(fields: [studentId], references: [id])
-  studentId    String
-  assignment   Assignment  @relation(fields: [assignmentId], references: [id])
-  assignmentId String
-  submittedAt  DateTime    @default(now())
-  grade        Float?
-  feedback     String?
-  Enrollment   Enrollment? @relation(fields: [enrollmentId], references: [id])
-  enrollmentId Int?
+  id            String      @id @default(uuid())
+  student       User        @relation(fields: [studentId], references: [id])
+  studentId     String
+  assignment    Assignment  @relation(fields: [assignmentId], references: [id])
+  assignmentId  String
+  submittedAt   DateTime    @default(now())
+  submissionUrl String
+  grade         Float?
+  feedback      String?
+  Enrollment    Enrollment? @relation(fields: [enrollmentId], references: [id])
+  enrollmentId  Int?
+
+  @@unique([studentId, assignmentId])
 }
 
 model Quiz {
   id        String     @id @default(uuid())
   title     String
-  course    Course     @relation(fields: [courseId], references: [id])
-  courseId  String
+  course    Course?    @relation(fields: [courseId], references: [id])
+  courseId  String?
+  chapter   Chapter?   @relation(fields: [chapterId], references: [id])
+  chapterId String?
+  lecture   Lecture?   @relation(fields: [lectureId], references: [id])
+  lectureId String?
   questions Question[]
 }
 
@@ -184,13 +195,28 @@ model Question {
 }
 
 model Club {
-  id          String         @id
-  name        String         @unique
-  description String?
-  image       String?        @default("https://res.cloudinary.com/dbtzwyw5t/image/upload/v1740813863/pexels-henri-mathieu-5898313_avyakb.jpg")
-  createdAt   DateTime       @default(now())
+  id              String    @id @default(uuid())
+  name            String    @unique
+  description     String?
+  image           String?   @default("https://res.cloudinary.com/dbtzwyw5t/image/upload/v1740813863/pexels-henri-mathieu-5898313_avyakb.jpg")
+  category        String
+  memberCount     Int       @default(0)
+  meetingLocation String?
+  meetingSchedule String?
+  nextMeeting     DateTime?
+  leader          String
+  leaderTitle     String
+  leaderImage     String?
+  leaderContact   String?
+  established     DateTime?
+  createdAt       DateTime  @default(now())
+  active          Boolean   @default(true)
+
   students    EnrolledClub[]
-  active      Boolean        @default(true)
+  events      ClubEvent[]
+  discussions ClubDiscussion[]
+  resources   ClubResource[]
+  members     ClubMember[]
 }
 
 model EnrolledClub {
@@ -202,4 +228,43 @@ model EnrolledClub {
   joinedAt  DateTime @default(now())
 
   @@unique([studentId, clubId])
+}
+
+model ClubEvent {
+  id       String   @id @default(uuid())
+  title    String
+  date     DateTime
+  time     String
+  location String
+  club     Club     @relation(fields: [clubId], references: [id])
+  clubId   String
+}
+
+model ClubDiscussion {
+  id         String   @id @default(uuid())
+  title      String
+  author     String
+  comments   Int      @default(0)
+  lastActive DateTime
+  club       Club     @relation(fields: [clubId], references: [id])
+  clubId     String
+}
+
+model ClubResource {
+  id     String @id @default(uuid())
+  title  String
+  type   String
+  link   String
+  club   Club   @relation(fields: [clubId], references: [id])
+  clubId String
+}
+
+model ClubMember {
+  id       String   @id @default(uuid())
+  name     String
+  role     String
+  image    String?
+  joinDate DateTime @default(now())
+  club     Club     @relation(fields: [clubId], references: [id])
+  clubId   String
 }

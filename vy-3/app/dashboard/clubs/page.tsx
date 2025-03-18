@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Search, Filter, Users, Clock, Calendar, ArrowRight, Star } from "lucide-react";
@@ -85,8 +85,17 @@ const clubsData = {
 };
 
 const ClubsPage = () => {
+    const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("All");
+
+    // Simulate loading state
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setIsLoading(false);
+        }, 800);
+        return () => clearTimeout(timer);
+    }, []);
 
     // Filter available clubs based on search and category
     const filteredAvailableClubs = clubsData.availableClubs.filter(club => {
@@ -97,6 +106,24 @@ const ClubsPage = () => {
         const matchesCategory = selectedCategory === 'All' || club.category === selectedCategory;
         return matchesSearch && matchesCategory;
     });
+
+    // Loading state
+    if (isLoading) {
+        return (
+            <div className="p-4 md:p-8 max-w-7xl mx-auto bg-gradient-to-br from-blue-50/40 to-indigo-50/40 min-h-screen flex items-center justify-center">
+                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-md border border-white/30 w-full max-w-md">
+                    <div className="flex flex-col items-center">
+                        <div className="flex space-x-2 mb-4">
+                            <div className="w-3 h-3 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                            <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                            <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                        </div>
+                        <p className="text-blue-800 font-medium">Loading clubs...</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="p-6 bg-gray-50">

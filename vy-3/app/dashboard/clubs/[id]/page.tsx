@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -16,6 +16,7 @@ import {
     MapPin,
     Star
 } from "lucide-react";
+
 interface ClubEvent {
     id: string;
     title: string;
@@ -68,7 +69,6 @@ interface Club {
     members: ClubMember[];
 }
 
-// Define the club data record type
 type ClubsDetailData = {
     [key: string]: Club;
 };
@@ -115,13 +115,49 @@ const clubsDetailData: ClubsDetailData = {
 };
 
 const ClubDetailPage = ({ params }: { params: { id: string } }) => {
+    const [isLoading, setIsLoading] = useState(true);
     const club = clubsDetailData[params.id];
 
+    // Simulate loading state
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setIsLoading(false);
+        }, 800);
+        return () => clearTimeout(timer);
+    }, []);
 
+    // Loading state
+    if (isLoading) {
+        return (
+            <div className="p-4 md:p-8 max-w-7xl mx-auto bg-gradient-to-br from-blue-50/40 to-indigo-50/40 min-h-screen flex items-center justify-center">
+                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-md border border-white/30 w-full max-w-md">
+                    <div className="flex flex-col items-center">
+                        <div className="flex space-x-2 mb-4">
+                            <div className="w-3 h-3 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                            <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                            <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                        </div>
+                        <p className="text-blue-800 font-medium">Loading club details...</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Club not found state
     if (!club) {
         return (
-            <div className="flex items-center justify-center h-screen">
-                <p>Club not found</p>
+            <div className="p-4 md:p-8 max-w-7xl mx-auto bg-gradient-to-br from-blue-50/40 to-indigo-50/40 min-h-screen flex items-center justify-center">
+                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-md border border-white/30 w-full max-w-md text-center">
+                    <div className="p-3 bg-red-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                        <Users className="h-8 w-8 text-red-500" />
+                    </div>
+                    <h2 className="text-xl font-bold mb-2 text-gray-800">Club Not Found</h2>
+                    <p className="text-gray-600 mb-6">The club you're looking for doesn't exist or may have been removed.</p>
+                    <Link href="/dashboard/clubs" className="px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-300 inline-block font-medium">
+                        Browse Clubs
+                    </Link>
+                </div>
             </div>
         );
     }
@@ -371,4 +407,5 @@ const ClubDetailPage = ({ params }: { params: { id: string } }) => {
         </div>
     );
 };
+
 export default ClubDetailPage;

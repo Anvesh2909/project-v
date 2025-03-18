@@ -1,5 +1,7 @@
 import prisma from "../config/dbConfig";
 import supabase from "../config/supabase";
+// Add to services/userService.ts
+import {PrismaClient} from '@prisma/client';
 
 export async function getUser(id: string) {
     const user = await prisma.user.findUnique({
@@ -87,3 +89,33 @@ export const getCourses = async () => {
         },
     });
 }
+
+export const submitAssignment = async (studentId: string, assignmentId: string, submissionUrl: string) => {
+    const enrollment = await prisma.enrollment.findFirst({
+        where: {
+            studentId,
+            courseId: assignmentId
+        }
+    });
+    if (!enrollment) {
+        throw new Error('Enrollment not found');
+    }
+    return prisma.submission.upsert({
+        where: {
+            studentId_assignmentId: {
+                studentId,
+                assignmentId
+            }
+        },
+        update: {
+            submissionUrl,
+            submittedAt: new Date()
+        },
+        create: {
+            studentId,
+            assignmentId,
+            submissionUrl,
+            enrollmentId: enrollment.id
+        }
+    });
+};

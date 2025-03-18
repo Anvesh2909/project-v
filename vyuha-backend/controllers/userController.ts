@@ -4,7 +4,7 @@ import {
     getUser,
     getUsers,
     setEnrollment,
-    updateUserPhoto,getCourses
+    updateUserPhoto, getCourses, submitAssignment
 } from "../services/userService";
 import { Request, Response } from "express";
 

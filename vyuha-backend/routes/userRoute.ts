@@ -9,7 +9,11 @@ import {
 } from "../controllers/userController";
 import {authMiddleware} from "../middlewares/authMiddleware";
 import upload from "../config/multerConfig";
-import {getCourseController} from "../controllers/courseController";
+import {
+    getAssignmentsController,
+    getCourseController, getSubmissionsController,
+    setSubmissionController
+} from "../controllers/courseController";
 userRouter.get("/getProfile",authMiddleware, getUserController);
 // @ts-ignore
 userRouter.post("/update",authMiddleware,upload, updateUserPhotoController);
@@ -20,4 +24,7 @@ userRouter.get("/getCourse/:id",authMiddleware,getCourseController);
 userRouter.post("/enroll",authMiddleware,setEnrollmentController);
 userRouter.get("/getChapters",authMiddleware,getChapterController);
 userRouter.get("/getLectures",authMiddleware,getLectureController);
+userRouter.get("/getAssignments/:id",authMiddleware,getAssignmentsController);
+userRouter.post("/submitAssignment",authMiddleware,upload,setSubmissionController);
+userRouter.get("/submissions", authMiddleware, getSubmissionsController);
 export default userRouter;

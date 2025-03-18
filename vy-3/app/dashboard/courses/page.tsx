@@ -1,5 +1,5 @@
 "use client";
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { Clock, Book, Search, Users, Filter, Grid, List, Award } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -7,16 +7,27 @@ import { AppContext, Course } from "@/context/AppContext";
 
 const CoursesPage = () => {
     const context = useContext(AppContext);
+    const [isLoading, setIsLoading] = useState(true);
     const courses = context?.courses || [];
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState('');
     const [filterDifficulty, setFilterDifficulty] = useState('');
     const [viewMode, setViewMode] = useState('grid');
 
+    useEffect(() => {
+        if (context) {
+            const timer = setTimeout(() => {
+                setIsLoading(false);
+            }, 500);
+            return () => clearTimeout(timer);
+        }
+    }, [context]);
+
     const dailyQuote = {
         text: "The only person you are destined to become is the person you decide to be.",
         author: "Ralph Waldo Emerson"
     };
+
     const filteredCourses = courses.filter(course => {
         const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
             course.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -30,6 +41,24 @@ const CoursesPage = () => {
 
     const courseTypes = Array.from(new Set(courses.map(course => course.type)));
     const difficultyLevels = Array.from(new Set(courses.map(course => course.difficulty)));
+
+    // Loading state
+    if (isLoading) {
+        return (
+            <div className="p-4 md:p-8 max-w-7xl mx-auto bg-gradient-to-br from-blue-50/40 to-indigo-50/40 min-h-screen flex items-center justify-center">
+                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-md border border-white/30 w-full max-w-md">
+                    <div className="flex flex-col items-center">
+                        <div className="flex space-x-2 mb-4">
+                            <div className="w-3 h-3 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                            <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                            <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                        </div>
+                        <p className="text-blue-800 font-medium">Loading courses...</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="container mx-auto px-4 py-6 max-w-7xl">
@@ -45,6 +74,7 @@ const CoursesPage = () => {
                 </div>
             </div>
 
+            {/* Rest of the component remains unchanged */}
             {/* Page Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
                 <div>
@@ -270,4 +300,5 @@ const CoursesPage = () => {
         </div>
     );
 };
+
 export default CoursesPage;
