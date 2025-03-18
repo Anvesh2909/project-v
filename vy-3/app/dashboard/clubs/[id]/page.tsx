@@ -411,9 +411,21 @@
 // export default ClubDetailPage;
 import React from 'react'
 
-const Page = () => {
+// Define the correct props type for Next.js dynamic routes
+interface PageProps {
+    params: {
+        id: string;
+    };
+    searchParams?: { [key: string]: string | string[] | undefined };
+}
+
+// Properly type the params
+const Page = ({ params }: PageProps) => {
+    const { id } = params;
+
     return (
-        <div>Page</div>
+        <div>Club ID: {id}</div>
     )
 }
+
 export default Page
