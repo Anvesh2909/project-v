@@ -5,7 +5,7 @@ import userRouter from "./routes/userRoute";
 import instructorRoute from "./routes/instructorRoute";
 import adminRoute from "./routes/adminRoute";
 import mentorRoute from "./routes/mentorRoute";
-const port = 9000;
+const port = process.env.PORT || 9000;
 const app = express();
 app.use(express.json());
 app.use(cors());
@@ -16,5 +16,5 @@ app.use("/ins",instructorRoute);
 app.use("/mtr",mentorRoute);
 app.use("/admin",adminRoute);
 app.listen(port, () => {
-    console.log(`Server is running on port http://localhost:${port}`);
+    console.log(`Server is running on port ${port}`);
 });
