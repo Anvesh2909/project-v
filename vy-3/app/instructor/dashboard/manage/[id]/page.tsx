@@ -94,7 +94,7 @@ const ManageCoursePage = () => {
             await axios.post(`${backendUrl}/ins/createChapter`, {
                 courseId,
                 title: newChapterTitle,
-                order: maxChapterOrder + 1
+                chapterOrder: maxChapterOrder + 1
             }, {
                 headers: { token: instructorToken }
             });

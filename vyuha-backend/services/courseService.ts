@@ -105,6 +105,9 @@ export async function getCourse(id: string) {
 
 export async function addChapter(courseId: string, title: string, chapterOrder: number) {
     try {
+        if (chapterOrder === undefined || isNaN(chapterOrder)) {
+            throw new Error("Chapter order must be a valid number");
+        }
         const chapterId = `${courseId}-CH${String(chapterOrder).padStart(2, '0')}`;
         const chapter = await prisma.chapter.create({
             data: {
