@@ -4,7 +4,7 @@ import { Clock, Book, Search, Users, Filter, Grid, List, Award } from "lucide-re
 import Image from "next/image";
 import Link from "next/link";
 import { AppContext, Course } from "@/context/AppContext";
-
+import axios from "axios";
 const CoursesPage = () => {
     const context = useContext(AppContext);
     const [isLoading, setIsLoading] = useState(true);
@@ -13,6 +13,52 @@ const CoursesPage = () => {
     const [filterType, setFilterType] = useState('');
     const [filterDifficulty, setFilterDifficulty] = useState('');
     const [viewMode, setViewMode] = useState('grid');
+    const [quote, setQuote] = useState({ text: "", author: "" });
+    const [quoteLoading, setQuoteLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchQuote = () => {
+            try {
+                const quotes = [
+                    { text: "The expert in anything was once a beginner.", author: "Helen Hayes" },
+                    { text: "The beautiful thing about learning is that no one can take it away from you.", author: "B.B. King" },
+                    { text: "Every accomplishment starts with the decision to try.", author: "John F. Kennedy" },
+                    { text: "Your future is created by what you do today, not tomorrow.", author: "Robert Kiyosaki" },
+                    { text: "The harder you work for something, the greater you'll feel when you achieve it.", author: "Anonymous" },
+                    { text: "Don't let what you cannot do interfere with what you can do.", author: "John Wooden" },
+                    { text: "Challenge yourself, it's the only path which leads to growth.", author: "Morgan Freeman" },
+                    { text: "The more that you read, the more things you will know. The more that you learn, the more places you'll go.", author: "Dr. Seuss" },
+                    { text: "Learning is not attained by chance, it must be sought for with ardor and diligence.", author: "Abigail Adams" },
+                    { text: "Education is not preparation for life; education is life itself.", author: "John Dewey" },
+                    { text: "Strive for progress, not perfection.", author: "Anonymous" },
+                    { text: "The capacity to learn is a gift; the ability to learn is a skill; the willingness to learn is a choice.", author: "Brian Herbert" },
+                    { text: "Never stop learning, because life never stops teaching.", author: "Anonymous" },
+                    { text: "The only limit to our realization of tomorrow will be our doubts of today.", author: "Franklin D. Roosevelt" },
+                    { text: "Knowledge is power. Information is liberating. Education is the premise of progress.", author: "Kofi Annan" },
+                    { text: "The only person you are destined to become is the person you decide to be.", author: "Ralph Waldo Emerson"}
+                ];
+
+                // Select a random quote
+                const randomIndex = Math.floor(Math.random() * quotes.length);
+                setQuote(quotes[randomIndex]);
+            } catch (error) {
+                console.error('Error with quotes:', error);
+                setQuote({
+                    text: "The only way to do great work is to love what you do.",
+                    author: "Steve Jobs"
+                });
+            } finally {
+                setQuoteLoading(false);
+            }
+        };
+
+        // Add a small delay to simulate fetching
+        const timer = setTimeout(() => {
+            fetchQuote();
+        }, 800);
+
+        return () => clearTimeout(timer);
+    }, []);
 
     useEffect(() => {
         if (context) {
@@ -23,10 +69,8 @@ const CoursesPage = () => {
         }
     }, [context]);
 
-    const dailyQuote = {
-        text: "The only person you are destined to become is the person you decide to be.",
-        author: "Ralph Waldo Emerson"
-    };
+    const courseTypes = Array.from(new Set(courses.map(course => course.type)));
+    const difficultyLevels = Array.from(new Set(courses.map(course => course.difficulty)));
 
     const filteredCourses = courses.filter(course => {
         const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -38,9 +82,6 @@ const CoursesPage = () => {
 
         return matchesSearch && matchesType && matchesDifficulty && isApproved;
     });
-
-    const courseTypes = Array.from(new Set(courses.map(course => course.type)));
-    const difficultyLevels = Array.from(new Set(courses.map(course => course.difficulty)));
 
     // Loading state
     if (isLoading) {
@@ -62,19 +103,30 @@ const CoursesPage = () => {
 
     return (
         <div className="container mx-auto px-4 py-6 max-w-7xl">
-            {/* Hero Section with Daily Quote instead of Search */}
+            {/* Hero Section with Daily Quote */}
             <div className="bg-gradient-to-r from-blue-700 to-blue-900 rounded-2xl p-8 mb-8 text-white">
                 <div className="max-w-3xl">
                     <h1 className="text-3xl md:text-4xl font-bold mb-4">Expand Your Knowledge</h1>
                     <p className="text-blue-100 mb-6 text-lg">Discover courses designed to help you develop new skills and advance your career.</p>
                     <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg p-6 text-center">
-                        <p className="text-xl italic text-white mb-2">"{dailyQuote.text}"</p>
-                        <p className="text-blue-200 text-sm">— {dailyQuote.author}</p>
+                        {quoteLoading ? (
+                            <div className="flex justify-center items-center h-16">
+                                <div className="flex space-x-2">
+                                    <div className="w-2 h-2 bg-blue-300 rounded-full animate-pulse"></div>
+                                    <div className="w-2 h-2 bg-blue-300 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                                    <div className="w-2 h-2 bg-blue-300 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                <p className="text-xl italic text-white mb-2">"{quote.text}"</p>
+                                <p className="text-blue-200 text-sm">— {quote.author}</p>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
 
-            {/* Rest of the component remains unchanged */}
             {/* Page Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
                 <div>
@@ -177,7 +229,9 @@ const CoursesPage = () => {
                 }>
                     {filteredCourses.map((course: Course) => (
                         viewMode === 'grid' ? (
+                            // Grid view component (unchanged)
                             <div key={course.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col h-full">
+                                {/* Rest of the grid view component... (unchanged) */}
                                 <div className="relative">
                                     <Image
                                         src={course.image || "/api/placeholder/500/300"}
@@ -232,7 +286,9 @@ const CoursesPage = () => {
                                 </div>
                             </div>
                         ) : (
+                            // List view component (unchanged)
                             <div key={course.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300">
+                                {/* Rest of the list view component... (unchanged) */}
                                 <div className="p-5 flex flex-col md:flex-row gap-5">
                                     <div className="relative md:w-48 shrink-0">
                                         <Image

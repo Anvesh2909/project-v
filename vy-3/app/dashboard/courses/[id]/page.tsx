@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useMemo } from 'react';
 import {
     Clock,
     Calendar,
@@ -81,7 +81,12 @@ const AssignmentCard = ({ assignment, uploading, selectedFile, handleFileChange,
                             disabled={uploading === assignment.id}
                             className="ml-2 bg-gradient-to-r from-[#10B981] to-[#059669] text-white p-2.5 rounded-lg flex items-center justify-center shadow-sm hover:shadow-md transition-all duration-200"
                         >
-                            {uploading === assignment.id ? <span className="animate-spin">⏳</span> : "Submit"}
+                            {uploading === assignment.id ? (
+                                <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            ) : "Submit"}
                         </button>
                     )}
                 </>
@@ -99,7 +104,6 @@ const AssignmentCard = ({ assignment, uploading, selectedFile, handleFileChange,
         </div>
     </div>
 );
-
 const LessonItem = ({ lesson, onClick }: any) => (
     <div
         className="flex items-center justify-between p-3.5 bg-white/70 rounded-xl hover:bg-white/90 cursor-pointer transition-all duration-200 border border-[#E2E8F0]/80 shadow-sm hover:shadow-md group"
@@ -156,6 +160,9 @@ const CourseDetailsPage = () => {
     const params = useParams();
     const courseId = params.id as string;
     const { data, token, backendUrl, fetchCourses, courses, enrollments } = useContext(AppContext) || {};
+    const { showNotification } = useNotification();
+
+    // Move all state hooks to the top
     const [videoModal, setVideoModal] = useState(false);
     const [activeLesson, setActiveLesson] = useState<Lecture | null>(null);
     const [isEnrolling, setIsEnrolling] = useState(false);
@@ -163,20 +170,61 @@ const CourseDetailsPage = () => {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [submissions, setSubmissions] = useState<Record<string, any>>({});
     const [assignments, setAssignments] = useState<any[]>([]);
-    const { showNotification } = useNotification();
+    const [localIsEnrolled, setLocalIsEnrolled] = useState(false);
+    const [loadingResources, setLoadingResources] = useState(false);
+
+    // Move useMemo hooks to the top level - they'll use null/empty values when data isn't loaded yet
+    const studentId = data?.id;
+    const courseDetails = courses?.find(course => course.id === courseId);
+
+    // Always call useMemo even if data isn't loaded yet
+    // First, add a status check to the enrollmentStatus useMemo
+    const enrollmentStatus = useMemo(() => {
+        const fromEnrollments = enrollments?.some(e => e.studentId === studentId && e.courseId === courseId) || false;
+        const enrollment = data?.courses?.find(c => c.id === courseId)?.enrollments?.find(e => e.studentId === data?.id);
+        return {
+            isEnrolled: fromEnrollments || localIsEnrolled,
+            progress: enrollment?.progress || 0,
+            status:  'IN_PROGRESS'
+        };
+    }, [enrollments, data?.courses, courseId, studentId, data?.id, localIsEnrolled]);
+    const allAssignmentsGraded = useMemo(() => {
+        if (assignments.length === 0) return false;
+
+        // Check if all assignments have submissions and are graded
+        return assignments.every(assignment =>
+            submissions[assignment.id] !== undefined &&
+            submissions[assignment.id]?.grade !== null
+        );
+    }, [assignments, submissions]);
+
+// Now create a displayProgress value that shows 100% when all assignments are graded
+    const displayProgress = useMemo(() => {
+        return allAssignmentsGraded ? 100 : enrollmentStatus.progress;
+    }, [allAssignmentsGraded, enrollmentStatus.progress]);
+    // Always call this useMemo hook
+    const chapters = useMemo(() => courseDetails?.courseContent || [], [courseDetails]);
 
     useEffect(() => {
         if (token) {
             fetchCourses?.();
         }
-    }, [token]);
+    }, [token, fetchCourses]);
 
     useEffect(() => {
         if (token && backendUrl && courseId) {
-            fetchAssignments();
-            fetchSubmissions();
+            setLoadingResources(true);
+            Promise.all([
+                fetchAssignments(),
+                fetchSubmissions()
+            ]).catch(error => {
+                console.error("Error fetching course data:", error);
+                showNotification("Failed to load some course data", "error");
+            }).finally(() => {
+                setLoadingResources(false);
+            });
         }
-    }, [token, courseId]);
+    }, [token, courseId, backendUrl]);
 
     const fetchAssignments = async () => {
         try {
@@ -184,9 +232,11 @@ const CourseDetailsPage = () => {
                 headers: { token }
             });
             setAssignments(response.data);
+            return response.data;
         } catch (error) {
             console.error("Error fetching assignments:", error);
             showNotification("Failed to load assignments", "error");
+            throw error;
         }
     };
 
@@ -205,9 +255,11 @@ const CourseDetailsPage = () => {
             }, {});
 
             setSubmissions(submissionsMap);
+            return submissionsMap;
         } catch (error) {
             console.error("Error fetching submissions:", error);
             showNotification("Failed to load your submissions", "error");
+            throw error;
         }
     };
 
@@ -225,7 +277,19 @@ const CourseDetailsPage = () => {
         try {
             setIsEnrolling(true);
             await axios.post(`${backendUrl}/api/enroll`, { courseId }, { headers: { token } });
-            fetchCourses?.();
+
+            // Update local enrollment state immediately
+            setLocalIsEnrolled(true);
+
+            // Fetch updated data
+            await fetchCourses?.();
+
+            // Fetch course-specific resources
+            await Promise.all([
+                fetchAssignments(),
+                fetchSubmissions()
+            ]);
+
             showNotification("Successfully enrolled in the course", "success");
         } catch (error) {
             console.error("Error enrolling in course:", error);
@@ -262,7 +326,26 @@ const CourseDetailsPage = () => {
             setUploading(null);
         }
     };
+    const handleCompleteButton = async () => {
+        if (!token || !backendUrl) return;
 
+        try {
+            // Send completion request to backend
+            await axios.put(`${backendUrl}/api/completeEnrollment`,
+                { courseId },
+                { headers: { token } }
+            );
+
+            // Refetch courses to update status
+            await fetchCourses?.();
+
+            showNotification("Course completed successfully!", "success");
+        } catch (error) {
+            console.error("Error completing course:", error);
+            showNotification("Failed to complete course", "error");
+        }
+    };
+    // Loading state
     if (!data || !courses || courses.length === 0) {
         return (
             <div className="p-4 md:p-8 max-w-6xl mx-auto bg-gradient-to-br from-blue-50/40 to-indigo-50/40 min-h-screen flex items-center justify-center">
@@ -279,8 +362,6 @@ const CourseDetailsPage = () => {
             </div>
         );
     }
-
-    const courseDetails = courses.find(course => course.id === courseId);
     if (!courseDetails) {
         return (
             <div className="p-4 md:p-8 max-w-6xl mx-auto bg-gradient-to-br from-blue-50/40 to-indigo-50/40 min-h-screen flex items-center justify-center">
@@ -298,30 +379,23 @@ const CourseDetailsPage = () => {
         );
     }
 
-    const studentId = data?.id;
-    const isEnrolled = enrollments?.some(e => e.studentId === studentId && e.courseId === courseId) || false;
-    const enrollment = data.courses?.find(c => c.id === courseId)?.enrollments?.find(e => e.studentId === data.id);
-    const progress = enrollment?.progress || 0;
-
-    const chapters = courseDetails.courseContent || [];
-
     return (
         <div className="p-4 md:p-8 max-w-6xl mx-auto bg-gradient-to-br from-blue-50/40 to-indigo-50/40 min-h-screen">
             <div className="flex flex-col lg:flex-row gap-6 mb-8">
                 {/* Course Header Card */}
-                <div className={`${isEnrolled ? 'lg:w-3/5' : 'w-full'} bg-white/70 backdrop-blur-sm rounded-2xl shadow-md overflow-hidden border border-white/30`}>
+                <div className={`${enrollmentStatus.isEnrolled ? 'lg:w-3/5' : 'w-full'} bg-white/70 backdrop-blur-sm rounded-2xl shadow-md overflow-hidden border border-white/30`}>
                     <div className="relative">
                         <img
                             src={courseDetails.image || "/api/placeholder/800/400"}
                             alt={courseDetails.title}
                             className="w-full h-48 md:h-72 object-cover"
                         />
-                        {!isEnrolled && (
+                        {!enrollmentStatus.isEnrolled && (
                             <div className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1.5 rounded-full text-sm font-semibold shadow-md">
                                 Not Enrolled
                             </div>
                         )}
-                        {isEnrolled && (
+                        {enrollmentStatus.isEnrolled && (
                             <div className="absolute top-4 right-4 bg-green-500 text-white px-3 py-1.5 rounded-full text-sm font-semibold shadow-md">
                                 Enrolled
                             </div>
@@ -372,7 +446,7 @@ const CourseDetailsPage = () => {
                 </div>
 
                 {/* Right Section - Only show when enrolled */}
-                {isEnrolled && (
+                {enrollmentStatus.isEnrolled && (
                     <div className="lg:w-2/5 flex flex-col h-full">
                         {/* Progress Card */}
                         <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/30 shadow-md mb-6">
@@ -382,17 +456,33 @@ const CourseDetailsPage = () => {
                             </h2>
                             <div className="mb-5">
                                 <div className="flex justify-between mb-2.5">
-                                    <span className="text-sm font-medium text-[#64748B]">Course Completion</span>
-                                    <span className="text-sm font-semibold text-[#2563EB]">{progress}%</span>
+        <span className="text-sm font-medium text-[#334155]">
+            Course Completion
+        </span>
+                                    <span className="text-sm font-semibold text-[#2563EB]">
+            {displayProgress}%
+        </span>
                                 </div>
                                 <div className="w-full bg-[#F1F5F9] rounded-full h-3 overflow-hidden shadow-inner">
                                     <div
-                                        className="bg-gradient-to-r from-[#2563EB] to-[#4F46E5] rounded-full h-3 transition-all duration-500"
-                                        style={{ width: `${progress}%` }}
-                                    ></div>
+                                        className="h-full bg-gradient-to-r from-[#3B82F6] to-[#2563EB] rounded-full"
+                                        style={{ width: `${displayProgress}%` }}
+                                    />
                                 </div>
                             </div>
-                            {progress >= 80 && (
+
+                            {/* Show Complete Course button if progress is sufficient but course isn't completed yet */}
+                            {displayProgress >= 80 && enrollmentStatus.status !== 'COMPLETED' && (
+                                <button
+                                    onClick={() => handleCompleteButton()}
+                                    className="w-full bg-gradient-to-r from-[#2563EB] to-[#4F46E5] text-white py-2.5 px-4 rounded-xl hover:shadow-lg hover:opacity-95 transition-all duration-300 flex items-center justify-center font-medium"
+                                >
+                                    Complete Course
+                                </button>
+                            )}
+
+                            {/* Only show View Certificate button if course is actually completed */}
+                            {enrollmentStatus.status === 'COMPLETED' && (
                                 <button className="w-full bg-gradient-to-r from-[#2563EB] to-[#4F46E5] text-white py-2.5 px-4 rounded-xl hover:shadow-lg hover:opacity-95 transition-all duration-300 flex items-center justify-center font-medium">
                                     <Verified className="h-4 w-4 mr-2.5" />
                                     View Certificate
@@ -405,6 +495,7 @@ const CourseDetailsPage = () => {
                             <h2 className="text-lg font-bold mb-4 text-[#1E293B] flex items-center">
                                 <FileText size={20} className="text-[#10B981] mr-2.5" />
                                 Assignments
+                                {loadingResources && <span className="ml-2 text-xs text-blue-500">(Loading...)</span>}
                             </h2>
                             <div className="space-y-3.5 overflow-y-auto pr-1.5" style={{ maxHeight: 'calc(100% - 56px)' }}>
                                 {assignments.length > 0 ? (
@@ -434,7 +525,7 @@ const CourseDetailsPage = () => {
 
             {/* Course Content - Full width */}
             <div className="w-full">
-                {isEnrolled ? (
+                {enrollmentStatus.isEnrolled ? (
                     <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-md p-5 md:p-7 border border-white/30">
                         <h2 className="text-lg md:text-xl font-bold mb-6 text-[#1E293B] flex items-center">
                             <PlayCircle size={22} className="text-[#2563EB] mr-2.5" />
@@ -512,7 +603,7 @@ const CourseDetailsPage = () => {
                     animation: fadeIn 0.3s ease-out;
                 }
                 .animate-scaleIn {
-                    animation: scaleIn 0.3s ease-out;
+                    animation: scaleIn 0.3s
                 }
             `}</style>
         </div>
