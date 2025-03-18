@@ -1,10 +1,16 @@
 import prisma from "../config/dbConfig";
-import {createClient} from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(process.env.SUPABASE_URL ?? '', process.env.SUPABASE_ANON_KEY ?? '');
-type CourseType = "IIE" | "TEC" | "ESO" | "LCH" | "HWB";
-type DifficultyLevel = "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "ALL_LEVELS";
-async function generateCourseId() {
+const BUCKET_NAME = process.env.SUPABASE_BUCKET_NAME || "vyuha-uploads";
+
+// Define types
+export type CourseType = "IIE" | "TEC" | "ESO" | "LCH" | "HWB";
+export type DifficultyLevel = "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "ALL_LEVELS";
+export type ResourceType = "VIDEO" | "PDF" | "LINK" | "TEXT";
+
+// Utility functions
+async function generateCourseId(): Promise<string> {
     const year = new Date().getFullYear().toString().slice(-2);
     const prefix = `VYCS`;
     const lastCourse = await prisma.course.findFirst({
@@ -22,6 +28,40 @@ async function generateCourseId() {
     return `${year}${prefix}${formattedNumber}`;
 }
 
+async function uploadFileToStorage(
+    buffer: Buffer,
+    mimetype: string,
+    filePath: string
+): Promise<string> {
+    const { error: uploadError } = await supabase.storage
+        .from(BUCKET_NAME)
+        .upload(filePath, buffer, {
+            contentType: mimetype,
+            cacheControl: "3600",
+            upsert: true
+        });
+
+    if (uploadError) {
+        console.error("❌ Upload Error:", uploadError);
+        throw new Error(`Failed to upload file: ${uploadError.message}`);
+    }
+
+    const { data: urlData } = supabase.storage.from(BUCKET_NAME).getPublicUrl(filePath);
+    if (!urlData) throw new Error("Failed to get public URL");
+
+    return urlData.publicUrl;
+}
+
+function getFileExtension(mimetype: string): string {
+    return mimetype.split("/")[1];
+}
+
+function handleServiceError(operation: string, error: unknown): never {
+    console.error(`❌ Error ${operation}:`, error);
+    throw new Error(`${operation} failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+}
+
+// Service functions
 export async function createCourse(data: {
     title: string,
     description: string,
@@ -33,29 +73,10 @@ export async function createCourse(data: {
     difficulty: DifficultyLevel,
 }) {
     try {
-        const bucketName = process.env.SUPABASE_BUCKET_NAME || "vyuha-uploads";
-        const fileExtension = data.mimetype.split("/")[1];
+        const fileExtension = getFileExtension(data.mimetype);
         const filePath = `course/${data.instructorId}/${data.title}.${fileExtension}`;
-        const { error: uploadError } = await supabase.storage
-            .from(bucketName)
-            .upload(filePath, data.image, { contentType: data.mimetype, cacheControl: "3600", upsert: true });
+        const publicUrl = await uploadFileToStorage(data.image, data.mimetype, filePath);
 
-        if (uploadError) {
-            console.error("Upload Error:", uploadError);
-            throw new Error(`Failed to upload image: ${uploadError.message}`);
-        }
-        const { data: urlData } = supabase.storage.from(bucketName).getPublicUrl(filePath);
-        if (!urlData) throw new Error("Failed to get public URL");
-        const publicUrl = urlData.publicUrl;
-        function isDifficultyLevel(value: any): value is DifficultyLevel {
-            const difficultyLevels = ["BEGINNER", "INTERMEDIATE", "ADVANCED", "ALL_LEVELS"];
-            return difficultyLevels.includes(value);
-        }
-
-        if (!isDifficultyLevel(data.difficulty)) {
-            throw new Error(`Invalid difficulty level: ${data.difficulty}`);
-        }
-        console.log("Image uploaded successfully. Public URL:", publicUrl);
         const courseId = await generateCourseId();
         const course = await prisma.course.create({
             data: {
@@ -72,15 +93,20 @@ export async function createCourse(data: {
 
         return course;
     } catch (error) {
-        console.error("Error creating course:", error);
-        throw new Error("Course creation failed");
+        handleServiceError("course creation", error);
     }
 }
+
 export async function getInstructorCourses(id: string) {
-    return prisma.course.findMany({
-        where: { instructorId: id }
-    });
+    try {
+        return await prisma.course.findMany({
+            where: { instructorId: id }
+        });
+    } catch (error) {
+        handleServiceError("fetching instructor courses", error);
+    }
 }
+
 export async function getCourse(id: string) {
     try {
         const course = await prisma.course.findUnique({
@@ -98,8 +124,7 @@ export async function getCourse(id: string) {
         }
         return course;
     } catch (error) {
-        console.error("Error fetching course:", error);
-        throw new Error("Failed to fetch course");
+        handleServiceError("fetching course", error);
     }
 }
 
@@ -117,33 +142,36 @@ export async function addChapter(courseId: string, title: string, chapterOrder: 
                 order: chapterOrder
             }
         });
-        console.log("Chapter Created:", chapter);
         return chapter;
     } catch (error) {
-        console.error("Error creating chapter:", error);
-        throw new Error("Chapter creation failed");
+        handleServiceError("chapter creation", error);
     }
 }
-export async function getChapters(courseId: string) {
-    return prisma.chapter.findMany({
-        where: { courseId },
-        include: {
-            lectures: true
-        },
-        orderBy: { order: "asc" }
-    });
-}
-export async function addLecture(data: {
-    title: any;
-    lectureDuration: number;
-    chapterId: any;
-    resourceType: any;
-    resource: Buffer<ArrayBufferLike> | undefined;
-    mimetype: string | undefined;
-    resourceUrl: any;
-    requiresSubmission: boolean
-}) {
 
+export async function getChapters(courseId: string) {
+    try {
+        return await prisma.chapter.findMany({
+            where: { courseId },
+            include: {
+                lectures: true
+            },
+            orderBy: { order: "asc" }
+        });
+    } catch (error) {
+        handleServiceError("fetching chapters", error);
+    }
+}
+
+export async function addLecture(data: {
+    title: string;
+    lectureDuration: number;
+    chapterId: string;
+    resourceType: ResourceType;
+    resource?: Buffer;
+    mimetype?: string;
+    resourceUrl?: string;
+    requiresSubmission: boolean;
+}) {
     try {
         const chapter = await prisma.chapter.findUnique({
             where: { id: data.chapterId }
@@ -159,28 +187,12 @@ export async function addLecture(data: {
         const lectureId = `${data.chapterId}-L${order}`;
 
         let resourceUrl = data.resourceUrl;
-
         if (!resourceUrl && data.resource && data.mimetype) {
-            const bucketName = process.env.SUPABASE_BUCKET_NAME || "vyuha-uploads";
-            const fileExtension = data.mimetype.split("/")[1];
+            const fileExtension = getFileExtension(data.mimetype);
             const filePath = `lecture/${data.chapterId}/${lectureId}.${fileExtension}`;
-
-            const { error: uploadError } = await supabase.storage
-                .from(bucketName)
-                .upload(filePath, data.resource, {
-                    contentType: data.mimetype,
-                    cacheControl: "3600",
-                    upsert: true
-                });
-            if (uploadError) {
-                console.error("❌ Upload failed:", uploadError);
-                throw new Error(`Upload failed: ${uploadError.message}`);
-            }
-            const { data: urlData } = supabase.storage.from(bucketName).getPublicUrl(filePath);
-            if (!urlData) throw new Error("Failed to get public URL");
-
-            resourceUrl = urlData.publicUrl;
+            resourceUrl = await uploadFileToStorage(data.resource, data.mimetype, filePath);
         }
+
         const lecture = await prisma.lecture.create({
             data: {
                 id: lectureId,
@@ -193,18 +205,24 @@ export async function addLecture(data: {
                 requiresSubmission: data.requiresSubmission || false
             }
         });
+
         return lecture;
     } catch (error) {
-        console.error("❌ Error creating lecture:", error);
-        throw new Error("Lecture creation failed");
+        handleServiceError("lecture creation", error);
     }
 }
+
 export async function getLectures(chapterId: string) {
-    return prisma.lecture.findMany({
-        where: { chapterId },
-        orderBy: { order: "asc" }
-    });
+    try {
+        return await prisma.lecture.findMany({
+            where: { chapterId },
+            orderBy: { order: "asc" }
+        });
+    } catch (error) {
+        handleServiceError("fetching lectures", error);
+    }
 }
+
 export async function setAssignment(data: {
     courseId: string;
     title: string;
@@ -218,15 +236,16 @@ export async function setAssignment(data: {
                 title: data.title,
                 description: data.description,
                 dueDate: data.dueDate,
-                courseId: data.courseId
+                courseId: data.courseId,
+                maxMarks: data.maxMarks
             }
         });
         return assignment;
     } catch (error) {
-        console.error("Error setting assignment:", error);
-        throw new Error("Failed to set assignment");
+        handleServiceError("setting assignment", error);
     }
 }
+
 export async function setSubmission(data: {
     studentId: string;
     assignmentId: string;
@@ -235,24 +254,15 @@ export async function setSubmission(data: {
         mimetype: string
     }
 }) {
-    const bucketName = process.env.SUPABASE_BUCKET_NAME || "vyuha-uploads";
-    const fileExtension = data.submission.mimetype.split("/")[1];
-    const filePath = `assignment/${data.studentId}/${data.assignmentId}.${fileExtension}`;
-    const { error: uploadError } = await supabase.storage
-        .from(bucketName)
-        .upload(filePath, data.submission.buffer, {
-            contentType: data.submission.mimetype,
-            cacheControl: "3600",
-            upsert: true
-        });
-    if (uploadError) {
-        console.error("Upload Error:", uploadError);
-        throw new Error(`Failed to upload image: ${uploadError.message}`);
-    }
-    const { data: urlData } = supabase.storage.from(bucketName).getPublicUrl(filePath);
-    if (!urlData) throw new Error("Failed to get public URL");
-    const fileUrl = urlData.publicUrl;
     try {
+        const fileExtension = getFileExtension(data.submission.mimetype);
+        const filePath = `assignment/${data.studentId}/${data.assignmentId}.${fileExtension}`;
+        const fileUrl = await uploadFileToStorage(
+            data.submission.buffer,
+            data.submission.mimetype,
+            filePath
+        );
+
         const submission = await prisma.submission.create({
             data: {
                 studentId: data.studentId,
@@ -260,25 +270,31 @@ export async function setSubmission(data: {
                 submissionUrl: fileUrl
             }
         });
+
         return submission;
     } catch (error) {
-        console.error("Error setting submission:", error);
-        throw new Error("Failed to set submission");
+        handleServiceError("setting submission", error);
     }
 }
 
 export async function getAssignments(courseId: string) {
-    return prisma.assignment.findMany({
-        where: {courseId},
-        orderBy: {dueDate: 'asc'}
-    });
+    try {
+        return await prisma.assignment.findMany({
+            where: { courseId },
+            orderBy: { dueDate: 'asc' }
+        });
+    } catch (error) {
+        handleServiceError("fetching assignments", error);
+    }
 }
+
 export async function getStudentSubmissionsForCourse(studentId: string, courseId: string) {
     try {
         const courseAssignments = await prisma.assignment.findMany({
             where: { courseId }
         });
         const assignmentIds = courseAssignments.map(assignment => assignment.id);
+
         return await prisma.submission.findMany({
             where: {
                 studentId,
@@ -286,10 +302,10 @@ export async function getStudentSubmissionsForCourse(studentId: string, courseId
             }
         });
     } catch (error) {
-        console.error("Error fetching student submissions:", error);
-        throw new Error("Failed to fetch student submissions");
+        handleServiceError("fetching student submissions", error);
     }
 }
+
 export async function getInstructorSubmissions(instructorId: string) {
     try {
         const instructorCourses = await prisma.course.findMany({
@@ -302,7 +318,9 @@ export async function getInstructorSubmissions(instructorId: string) {
             where: { courseId: { in: courseIds } },
             select: { id: true }
         });
+
         const assignmentIds = courseAssignments.map(assignment => assignment.id);
+
         return await prisma.submission.findMany({
             where: { assignmentId: { in: assignmentIds } },
             include: {
@@ -330,10 +348,10 @@ export async function getInstructorSubmissions(instructorId: string) {
             }
         });
     } catch (error) {
-        console.error("❌ Error fetching instructor submissions:", error);
-        throw new Error("Failed to fetch instructor submissions");
+        handleServiceError("fetching instructor submissions", error);
     }
 }
+
 export async function setGrade(data: {
     submissionId: string;
     marks: number;
@@ -341,17 +359,17 @@ export async function setGrade(data: {
 }) {
     try {
         return await prisma.submission.update({
-            where: {id: data.submissionId},
+            where: { id: data.submissionId },
             data: {
                 grade: data.marks,
                 feedback: data.feedback
             }
         });
     } catch (error) {
-        console.error("❌ Error setting grade:", error);
-        throw new Error("Failed to set grade");
+        handleServiceError("setting grade", error);
     }
 }
+
 export async function getAllStudentSubmissions(studentId: string) {
     try {
         return await prisma.submission.findMany({
@@ -375,7 +393,6 @@ export async function getAllStudentSubmissions(studentId: string) {
             },
         });
     } catch (error) {
-        console.error("Error fetching student submissions:", error);
-        throw new Error("Failed to fetch student submissions");
+        handleServiceError("fetching student submissions", error);
     }
 }
