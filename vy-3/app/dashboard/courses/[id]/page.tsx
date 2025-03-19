@@ -161,8 +161,6 @@ const CourseDetailsPage = () => {
     const courseId = params.id as string;
     const { data, token, backendUrl, fetchCourses, courses, enrollments } = useContext(AppContext) || {};
     const { showNotification } = useNotification();
-
-    // Move all state hooks to the top
     const [videoModal, setVideoModal] = useState(false);
     const [activeLesson, setActiveLesson] = useState<Lecture | null>(null);
     const [isEnrolling, setIsEnrolling] = useState(false);
@@ -172,13 +170,8 @@ const CourseDetailsPage = () => {
     const [assignments, setAssignments] = useState<any[]>([]);
     const [localIsEnrolled, setLocalIsEnrolled] = useState(false);
     const [loadingResources, setLoadingResources] = useState(false);
-
-    // Move useMemo hooks to the top level - they'll use null/empty values when data isn't loaded yet
     const studentId = data?.id;
     const courseDetails = courses?.find(course => course.id === courseId);
-
-    // Always call useMemo even if data isn't loaded yet
-    // First, add a status check to the enrollmentStatus useMemo
     const enrollmentStatus = useMemo(() => {
         const fromEnrollments = enrollments?.some(e => e.studentId === studentId && e.courseId === courseId) || false;
         const enrollment = data?.courses?.find(c => c.id === courseId)?.enrollments?.find(e => e.studentId === data?.id);
@@ -190,8 +183,6 @@ const CourseDetailsPage = () => {
     }, [enrollments, data?.courses, courseId, studentId, data?.id, localIsEnrolled]);
     const allAssignmentsGraded = useMemo(() => {
         if (assignments.length === 0) return false;
-
-        // Check if all assignments have submissions and are graded
         return assignments.every(assignment =>
             submissions[assignment.id] !== undefined &&
             submissions[assignment.id]?.grade !== null
@@ -214,39 +205,28 @@ const CourseDetailsPage = () => {
     useEffect(() => {
         if (token && backendUrl && courseId) {
             setLoadingResources(true);
-            Promise.all([
-                fetchAssignments(),
-                fetchSubmissions()
-            ]).catch(error => {
-                console.error("Error fetching course data:", error);
-                showNotification("Failed to load some course data", "error");
-            }).finally(() => {
-                setLoadingResources(false);
-            });
+            fetchAssignmentsAndSubmissions();
         }
     }, [token, courseId, backendUrl]);
 
-    const fetchAssignments = async () => {
-        try {
-            const response = await axios.get(`${backendUrl}/api/getAssignments/${courseId}`, {
-                headers: { token }
-            });
-            setAssignments(response.data);
-            return response.data;
-        } catch (error) {
-            console.error("Error fetching assignments:", error);
-            showNotification("Failed to load assignments", "error");
-            throw error;
-        }
-    };
+    const fetchAssignmentsAndSubmissions = async () => {
+        if (!token || !backendUrl || !courseId) return;
 
-    const fetchSubmissions = async () => {
-        try {
-            const response = await axios.get(`${backendUrl}/api/submissions`, {
-                headers: { token }
-            });
+        setLoadingResources(true);
 
-            const submissionsMap = response.data.reduce((acc: Record<string, any>, submission: any) => {
+        try {
+            // Use Promise.all to fetch both resources in parallel
+            const [assignmentsData, submissionsData] = await Promise.all([
+                axios.get(`${backendUrl}/api/getAssignments/${courseId}`, {
+                    headers: { token }
+                }),
+                axios.get(`${backendUrl}/api/submissions`, {
+                    headers: { token }
+                })
+            ]);
+
+            // Process both results at once
+            const submissionsMap = submissionsData.data.reduce((acc: Record<string, any>, submission: any) => {
                 acc[submission.assignmentId] = {
                     ...submission,
                     graded: submission.grade !== null
@@ -254,14 +234,25 @@ const CourseDetailsPage = () => {
                 return acc;
             }, {});
 
+            // Update both states at once (in a single render cycle)
+            setAssignments(assignmentsData.data);
             setSubmissions(submissionsMap);
-            return submissionsMap;
+
+            return { assignments: assignmentsData.data, submissions: submissionsMap };
         } catch (error) {
-            console.error("Error fetching submissions:", error);
-            showNotification("Failed to load your submissions", "error");
+            console.error("Error fetching course data:", error);
+            showNotification("Failed to load course materials", "error");
             throw error;
+        } finally {
+            setLoadingResources(false);
         }
     };
+
+    useEffect(() => {
+        if (token && backendUrl && courseId) {
+            fetchAssignmentsAndSubmissions();
+        }
+    }, [token, courseId, backendUrl]);
 
     const handleLessonClick = (lesson: Lecture) => {
         if (lesson.resourceType.toLowerCase() === 'video') {
@@ -284,11 +275,6 @@ const CourseDetailsPage = () => {
             // Fetch updated data
             await fetchCourses?.();
 
-            // Fetch course-specific resources
-            await Promise.all([
-                fetchAssignments(),
-                fetchSubmissions()
-            ]);
 
             showNotification("Successfully enrolled in the course", "success");
         } catch (error) {
@@ -318,7 +304,7 @@ const CourseDetailsPage = () => {
 
             setSelectedFile(null);
             showNotification("Assignment submitted successfully", "success");
-            fetchSubmissions();
+            fetchAssignmentsAndSubmissions();
         } catch (error) {
             console.error("Error submitting assignment:", error);
             showNotification("Failed to submit assignment", "error");
