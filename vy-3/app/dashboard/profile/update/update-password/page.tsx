@@ -77,7 +77,7 @@ export default function Page() {
                     <div className="flex items-center justify-between h-16">
                         <Link href="/dashboard/profile" className="flex items-center gap-2 text-blue-800 hover:text-blue-600 transition-colors">
                             <ArrowLeft className="h-5 w-5" />
-                            <span className="font-medium">Back to Sign In</span>
+                            <span className="font-medium">Back to Profile</span>
                         </Link>
                     </div>
                 </div>
