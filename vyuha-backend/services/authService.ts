@@ -57,7 +57,7 @@ export function generateToken(userId: string, role: string) {
     const payload = {
         id: userId,
         role,
-        exp: Math.floor(Date.now() / 1000) + (60 * 60 ) * 24
+        exp: Math.floor(Date.now() / 1000) + (60 * 60 ) * 3
     };
     const secret = process.env.JWT_SECRET;
     if (!secret) {
