@@ -151,7 +151,7 @@ export const setSubmissionController = async (req: Request, res: Response): Prom
     }
 }
 export const getAssignmentsController = async (req: Request, res: Response): Promise<void> => {
-    const { courseId } = req.params;
+    const { id: courseId } = req.params;
     try {
         const response = await getAssignments(courseId);
         res.status(200).json(response);
