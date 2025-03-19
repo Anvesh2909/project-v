@@ -302,7 +302,7 @@ const ManageCoursePage = () => {
                             >
                                 <option value={ResourceType.LINK}>External Link</option>
                                 <option value={ResourceType.VIDEO}>Upload Video</option>
-                                <option value={ResourceType.DOCUMENT}>Upload Document</option>
+                                <option value={ResourceType.PDF}>Upload Document</option>
                             </select>
                         </div>
 

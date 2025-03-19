@@ -33,6 +33,27 @@ export async function createStudent(name: string, uniId: string, password: strin
             throw new Error(`Generated ID ${id} is not exactly 10 digits`);
         }
 
+        // Extract branch information from the 6th digit (index 5) of uniId
+        const branchCode = uniId.charAt(5);
+        let branch;
+
+        switch (branchCode) {
+            case '3':
+                branch = 'CSE';
+                break;
+            case '4':
+                branch = 'ECE';
+                break;
+            case '8':
+                branch = 'AIDS';
+                break;
+            case '9':
+                branch = 'CSIT';
+                break;
+            default:
+                branch = 'Unknown';
+        }
+
         const passwordHash = await bcrypt.hash(password, 10);
         const student = await prisma.user.create({
             data: {
@@ -41,7 +62,8 @@ export async function createStudent(name: string, uniId: string, password: strin
                 email: `${uniId}@kluniversity.in`,
                 passwordHash,
                 collegeID: uniId,
-                role: "STUDENT"
+                role: "STUDENT",
+                branch: branch
             }
         });
 

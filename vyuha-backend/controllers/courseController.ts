@@ -199,7 +199,6 @@ export const setGradeController = async (req: Request, res: Response): Promise<v
 }
 export const getSubmissionsController = async (req: Request, res: Response): Promise<void> => {
     const studentId = req.body.id;
-
     try {
         const submissions = await getAllStudentSubmissions(studentId);
         res.status(200).json(submissions);
