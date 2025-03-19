@@ -182,3 +182,27 @@ export async function instructorLogin(id: string, password: string) {
     const token = generateToken(user.id, user.role);
     return {token};
 }
+export async function updatePassword(userId: string, oldPassword: string, newPassword: string) {
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id: userId }
+        });
+        if (!user) {
+            throw new Error("User not found");
+        }
+        const isValidPassword = await bcrypt.compare(oldPassword, user.passwordHash);
+        if (!isValidPassword) {
+            throw new Error("Current password is incorrect");
+        }
+        const newPasswordHash = await bcrypt.hash(newPassword, 10);
+        await prisma.user.update({
+            where: { id: userId },
+            data: { passwordHash: newPasswordHash }
+        });
+
+        return "Password updated successfully";
+    } catch (error) {
+        console.error("Error updating password:", error);
+        throw error;
+    }
+}

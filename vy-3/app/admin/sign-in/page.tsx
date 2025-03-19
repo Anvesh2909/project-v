@@ -143,15 +143,6 @@ export default function AdminSignIn() {
                                     </div>
                                 </div>
 
-                                <div className="flex items-center justify-between">
-                                    <button
-                                        type="button"
-                                        className="text-sm text-blue-600 hover:text-blue-700 transition-colors font-medium hover:underline underline-offset-4"
-                                    >
-                                        Forgot password?
-                                    </button>
-                                </div>
-
                                 <button
                                     type="submit"
                                     disabled={isLoading}

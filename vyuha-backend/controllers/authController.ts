@@ -6,7 +6,7 @@ import {
     createStudent,
     instructorLogin,
     login,
-    mentorLogin
+    mentorLogin, updatePassword
 } from "../services/authService";
 export const createStudentController = (req: Request, res: Response) => {
     const {name, uniId, password} = req.body;
@@ -60,6 +60,14 @@ export const mentorLoginController = (req: Request, res: Response) => {
 export const instructorLoginController = (req: Request, res: Response) => {
     const {id, password} = req.body;
     instructorLogin(id, password).then((response) => {
+        res.status(200).json(response);
+    }).catch((error) => {
+        res.status(400).json(error);
+    });
+}
+export const updatePasswordController = (req: Request, res: Response) => {
+    const {userId, oldPassword, newPassword} = req.body;
+    updatePassword(userId, oldPassword, newPassword).then((response) => {
         res.status(200).json(response);
     }).catch((error) => {
         res.status(400).json(error);

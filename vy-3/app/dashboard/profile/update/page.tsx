@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { AppContext } from "@/context/AppContext";
 import axios from "axios";
+import Link from "next/link";
 
 export default function UpdateProfile() {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -70,6 +71,7 @@ export default function UpdateProfile() {
                             {error}
                         </div>
                     )}
+
                     <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="flex flex-col items-center">
                             {preview ? (
@@ -100,6 +102,10 @@ export default function UpdateProfile() {
                             {isLoading ? "Updating..." : "Update Photo"}
                         </button>
                     </form>
+                    <Link href="/dashboard/profile/update/update-password"
+                          className="mt-4 text-blue-600 hover:text-blue-800 text-center block">
+                        Update Password
+                    </Link>
                 </div>
             </div>
         </div>
