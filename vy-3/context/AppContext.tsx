@@ -134,7 +134,7 @@ const AppContextProvider = (props: AppContextProviderProps) => {
         setToken(newToken);
         setIsAuthenticated(true);
         localStorage.setItem('token', newToken);
-        Cookies.set('token', newToken, { expires: 7 });
+        Cookies.set('token', newToken, { expires: 3 / 24 });
         getData(newToken);
         router.push('/dashboard');
     };

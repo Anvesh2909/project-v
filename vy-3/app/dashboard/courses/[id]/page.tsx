@@ -321,17 +321,13 @@ const CourseDetailsPage = () => {
                 { courseId },
                 { headers: { token } }
             );
-
-            // Refetch courses to update status
             await fetchCourses?.();
-
             showNotification("Course completed successfully!", "success");
         } catch (error) {
             console.error("Error completing course:", error);
             showNotification("Failed to complete course", "error");
         }
     };
-    // Loading state
     if (!data || !courses || courses.length === 0) {
         return (
             <div className="p-4 md:p-8 max-w-6xl mx-auto bg-gradient-to-br from-blue-50/40 to-indigo-50/40 min-h-screen flex items-center justify-center">
@@ -508,8 +504,6 @@ const CourseDetailsPage = () => {
                     </div>
                 )}
             </div>
-
-            {/* Course Content - Full width */}
             <div className="w-full">
                 {enrollmentStatus.isEnrolled ? (
                     <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-md p-5 md:p-7 border border-white/30">
@@ -595,5 +589,4 @@ const CourseDetailsPage = () => {
         </div>
     );
 };
-
 export default CourseDetailsPage;

@@ -102,7 +102,7 @@ const InstructorContextProvider = (props: InstructorContextProviderProps) => {
         setInstructorToken(newToken);
         setIsInstructorAuthenticated(true);
         localStorage.setItem('token', newToken);
-        Cookies.set('token', newToken, { expires: 7 });
+        Cookies.set('token', newToken, { expires: 3 / 24 });
         getInstructorData(newToken);
         router.push('/instructor/dashboard');
     };

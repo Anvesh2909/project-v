@@ -58,7 +58,7 @@ const MentorContextProvider = (props: MentorContextProviderProps) => {
         setMentorToken(newToken);
         setIsMentorAuthenticated(true);
         localStorage.setItem('token', newToken);
-        Cookies.set('token', newToken, { expires: 7 });
+        Cookies.set('token', newToken, { expires: 3/24 });
         getMentorData(newToken);
         router.push('/mentor/dashboard');
     };

@@ -62,7 +62,7 @@ const AdminContextProvider = (props: AdminContextProviderProps) => {
             } else {
                 setAdminToken(storedToken);
                 setIsAdminAuthenticated(true);
-                Cookies.set('token', storedToken, { expires: 7 });
+                Cookies.set('token', storedToken, { expires: 3/24 });
                 getUsers();
                 getCourses();
             }
