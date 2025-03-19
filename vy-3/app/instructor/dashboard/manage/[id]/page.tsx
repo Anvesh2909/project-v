@@ -4,9 +4,10 @@ import { useParams } from 'next/navigation';
 import axios from 'axios';
 import { InstructorContext } from '@/context/InstructorContext';
 enum ResourceType {
-    LINK = "LINK",
     VIDEO = "VIDEO",
-    DOCUMENT = "DOCUMENT"
+    ARTICLE = "ARTICLE",
+    PDF = "PDF",
+    LINK = "LINK"
 }
 const ManageCoursePage = () => {
     const params = useParams();

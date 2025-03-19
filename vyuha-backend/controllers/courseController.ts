@@ -1,3 +1,4 @@
+import { ResourceType } from "@prisma/client";
 import {
     addChapter,
     addLecture,
@@ -92,11 +93,24 @@ export const addLectureController = async (req: Request, res: Response): Promise
     }
 
     try {
+        // Use exact enum values expected by Prisma schema
+        // These values need to match your Prisma schema definition exactly
+        const normalizeResourceType = (type: string): ResourceType => {
+            switch(type.toUpperCase()) {
+                case 'LINK': return ResourceType.LINK;
+                case 'VIDEO': return ResourceType.VIDEO;
+                case 'PDF': return ResourceType.PDF;
+                case 'ARTICLE': return ResourceType.ARTICLE;
+                case 'DOCUMENT': return ResourceType.PDF; // Map DOCUMENT to PDF
+                default: return ResourceType.LINK;
+            }
+        };
+
         const response = await addLecture({
             title,
             lectureDuration: parseInt(lectureDuration, 10),
             chapterId,
-            resourceType,
+            resourceType: normalizeResourceType(resourceType),
             resource,
             mimetype,
             resourceUrl,
