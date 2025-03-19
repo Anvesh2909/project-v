@@ -45,7 +45,7 @@ enum EnrollmentStatus {
 model User {
   id                 String           @id
   name               String
-  email              String           @unique
+  email              String
   passwordHash       String
   role               Role
   collegeID          String
@@ -84,7 +84,7 @@ model Course {
   description   String?
   image         String
   createdAt     DateTime        @default(now())
-  duration      String // Estimated course duration (e.g., "6 weeks")
+  duration      String
   difficulty    DifficultyLevel
   instructorId  String
   isApproved    Boolean         @default(false)
