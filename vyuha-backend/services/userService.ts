@@ -1,19 +1,25 @@
 import prisma from "../config/dbConfig";
 import supabase from "../config/supabase";
 import {Prisma} from "@prisma/client";
+const handleError = (operation: string, error: unknown) => {
+    console.error(`Error in ${operation}:`, error);
+    throw new Error(`Failed to ${operation}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+};
+const ADMIN_EMAIL = "2300032870@kluniversity.in";
+const ADMIN_USER = {
+    id: "admin-id",
+    name: "Admin User",
+    email: ADMIN_EMAIL,
+    role: "ADMIN",
+    image: null,
+    collegeID: "2300032870",
+    branch: "CSE"
+};
+
 export async function getUser(id: string) {
     try {
-        if (id === "2300032870@kluniversity.in") {
-            return {
-                id: "admin-id",
-                name: "Admin User",
-                email: "2300032870@kluniversity.in",
-                role: "ADMIN",
-                image: null,
-                collegeID: "2300032870",
-                branch: "CSE"
-            };
-        }
+        if (id === ADMIN_EMAIL) return ADMIN_USER;
+
         const user = await prisma.user.findUnique({
             where: { id },
             select: {
@@ -27,16 +33,9 @@ export async function getUser(id: string) {
             }
         });
 
-        // Return null instead of throwing an error when user not found
-        if (!user) {
-            console.log(`User with ID ${id} not found`);
-            return null;
-        }
-
-        return user;
+        return user || null;
     } catch (error) {
-        console.error(`Error fetching user ${id}:`, error);
-        throw new Error(`Failed to retrieve user: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        handleError(`retrieve user ${id}`, error);
     }
 }
 
@@ -79,34 +78,38 @@ export async function updateUserPhoto(id: string, photoBuffer: Buffer, mimetype:
 }
 
 export async function getUsers(page = 1, limit = 10, searchTerm = '') {
-    const skip = (page - 1) * limit;
+    try {
+        const skip = (page - 1) * limit;
+        const where = searchTerm ? {
+            OR: [
+                { name: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+                { email: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+                { id: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } }
+            ]
+        } : {};
 
-    const where = searchTerm ? {
-        OR: [
-            { name: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
-            { email: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
-            { id: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } }
-        ]
-    } : {};
+        const [totalCount, users] = await Promise.all([
+            prisma.user.count({ where }),
+            prisma.user.findMany({
+                where,
+                skip,
+                take: limit,
+                orderBy: { createdAt: 'desc' }
+            })
+        ]);
 
-    const totalCount = await prisma.user.count({ where });
-
-    const users = await prisma.user.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' }
-    });
-
-    return {
-        users,
-        pagination: {
-            total: totalCount,
-            pages: Math.ceil(totalCount / limit),
-            page,
-            limit
-        }
-    };
+        return {
+            users,
+            pagination: {
+                total: totalCount,
+                pages: Math.ceil(totalCount / limit),
+                page,
+                limit
+            }
+        };
+    } catch (error) {
+        handleError("fetch users", error);
+    }
 }
 
 export const checkEnrollment = async (userId: string, courseId: string) => {
@@ -177,10 +180,7 @@ export async function submitAssignment(studentId: string, assignmentId: string, 
         if (!enrollment) {
             throw new Error(`Student ${studentId} is not enrolled in the course for this assignment`);
         }
-
-        // Use a transaction to ensure data consistency
         return prisma.$transaction(async (tx) => {
-            // Create or update the submission
             const submission = await tx.submission.upsert({
                 where: {
                     studentId_assignmentId: {

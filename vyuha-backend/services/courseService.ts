@@ -391,7 +391,6 @@ export async function setSubmission(data: {
     submission: SubmissionData
 }) {
     try {
-        // Check if assignment exists
         const assignment = await prisma.assignment.findUnique({
             where: { id: data.assignmentId },
             select: { id: true, courseId: true, dueDate: true }
