@@ -3,7 +3,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import { InstructorContext } from '@/context/InstructorContext';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Search, PlusCircle, BookOpen, AlertCircle, Trash2, Edit3, Tag, Clock, Users } from 'lucide-react';
+import { Search, PlusCircle, BookOpen, AlertCircle, Trash2, Edit3, Tag, Clock, Users, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Course } from "@/context/InstructorContext";
 import axios from 'axios';
 
@@ -15,32 +15,82 @@ const courseTypeLabels: Record<string, string> = {
     'HWB': 'Health & Wellbeing'
 };
 
+type PaginationMetadata = {
+    totalCount: number;
+    totalPages: number;
+    currentPage: number;
+    pageSize: number;
+}
+
 const ManageCoursesPage = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
     const [error, setError] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [filter, setFilter] = useState<'all' | 'published' | 'draft'>('all');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [courses, setCourses] = useState<Course[]>([]);
+    const [pagination, setPagination] = useState<PaginationMetadata>({
+        totalCount: 0,
+        totalPages: 0,
+        currentPage: 1,
+        pageSize: 6
+    });
+
     const context = useContext(InstructorContext);
+    const backendUrl = context?.backendUrl || '';
     const instructorToken = context?.instructorToken;
-    const getCourses = context?.getCourses;
-    useEffect(() => {
-        if(getCourses){
-            getCourses();
+
+    const fetchCourses = async () => {
+        if (!instructorToken || !backendUrl) return;
+
+        setIsLoading(true);
+        setError('');
+
+        try {
+            // Build query parameters
+            const params = new URLSearchParams();
+            params.append('page', currentPage.toString());
+            params.append('limit', '6'); // Match coursesPerPage
+
+            if (searchQuery) {
+                params.append('search', searchQuery);
+            }
+
+            if (filter !== 'all') {
+                params.append('status', filter);
+            }
+
+            const response = await axios.get(`${backendUrl}/ins/getInstructorCourses?${params.toString()}`, {
+                headers: { token: instructorToken }
+            });
+
+            setCourses(response.data.data);
+            setPagination(response.data.pagination);
+        } catch (error) {
+            console.error('Error fetching courses:', error);
+            setError('Failed to load courses. Please try again.');
+        } finally {
+            setIsLoading(false);
         }
-    }, [instructorToken]);
+    };
 
-    if (!context) {
-        return (
-            <div className="flex justify-center items-center min-h-[400px]">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-            </div>
-        );
-    }
+    useEffect(() => {
+        fetchCourses();
+    }, [instructorToken, currentPage, filter]);
 
-    const { courses } = context;
-    const backendUrl = context?.backendUrl;
-    const currentToken = context?.instructorToken;
+    // Debounce search input
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (currentPage !== 1) {
+                setCurrentPage(1); // Reset to page 1 when search changes
+            } else {
+                fetchCourses(); // If already on page 1, just fetch
+            }
+        }, 300);
+
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
 
     const handleDeleteCourse = async (courseId: string) => {
         if (confirm('Are you sure you want to delete this course?')) {
@@ -52,14 +102,13 @@ const ManageCoursesPage = () => {
                     `${backendUrl}/ins/deleteCourse/${courseId}`,
                     {
                         headers: {
-                            token: currentToken
+                            token: instructorToken
                         }
                     }
                 );
 
-                // Refresh the courses list after successful deletion
-                context.getCourses();
-
+                // Refresh courses after deletion
+                fetchCourses();
             } catch (error) {
                 console.error('Error deleting course:', error);
                 setError('Failed to delete course. Please try again.');
@@ -69,19 +118,19 @@ const ManageCoursesPage = () => {
         }
     };
 
-    const filteredCourses = courses?.filter(course => {
-        const matchesSearch = course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (course.description && course.description.toLowerCase().includes(searchQuery.toLowerCase()));
-        if (filter === 'all') return matchesSearch;
-        if (filter === 'published') return matchesSearch && course.isApproved;
-        if (filter === 'draft') return matchesSearch && !course.isApproved;
-
-        return matchesSearch;
-    });
-
-    const getChaptersCount = (course: Course) => {
-        return course.courseContent?.length || 0;
+    const resetFilters = () => {
+        setSearchQuery('');
+        setFilter('all');
+        setCurrentPage(1);
     };
+
+    if (!context) {
+        return (
+            <div className="flex justify-center items-center min-h-[400px]">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="p-6 max-w-7xl mx-auto">
@@ -141,96 +190,18 @@ const ManageCoursesPage = () => {
                 </div>
             )}
 
-            {isLoading && !courses ? (
+            {isLoading && courses.length === 0 ? (
                 <div className="flex justify-center p-12">
                     <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
                 </div>
-            ) : filteredCourses && filteredCourses.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredCourses.map(course => (
-                        <div key={course.id} className="rounded-xl overflow-hidden shadow-md flex flex-col bg-white border border-gray-200 h-full transition-all hover:shadow-lg hover:-translate-y-1 duration-200">
-                            <div className="w-full aspect-video relative">
-                                <Image
-                                    src={course.image || '/placeholder-course.jpg'}
-                                    alt={course.title}
-                                    fill
-                                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                                    className="object-cover"
-                                />
-                                <div className="absolute top-3 right-3">
-                                    <span className={`px-3 py-1 rounded-full text-xs font-medium shadow-sm ${
-                                        course.isApproved ? "bg-green-500 text-white" : "bg-yellow-400 text-gray-800"
-                                    }`}>
-                                        {course.isApproved ? "Published" : "Draft"}
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="p-5 flex-grow flex flex-col">
-                                <div className="flex justify-between items-start mb-1">
-                                    <h2 className="text-xl font-semibold line-clamp-1">{course.title}</h2>
-                                    {course.type && (
-                                        <span className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-md">
-                                            <Tag className="w-3 h-3 mr-1" />
-                                            {courseTypeLabels[course.type] || course.type}
-                                        </span>
-                                    )}
-                                </div>
-
-                                <div className="flex flex-wrap gap-2 mb-2">
-                                    {course.duration && (
-                                        <span className="inline-flex items-center text-xs text-gray-600">
-                                            <Clock className="w-3 h-3 mr-1" />
-                                            {course.duration}
-                                        </span>
-                                    )}
-                                    {course.difficulty && (
-                                        <span className="inline-flex items-center text-xs text-gray-600 ml-2">
-                                            <Users className="w-3 h-3 mr-1" />
-                                            {course.difficulty.replace('_', ' ').toLowerCase()
-                                                .replace(/\b\w/g, char => char.toUpperCase())}
-                                        </span>
-                                    )}
-                                </div>
-
-                                <p className="text-gray-600 mb-5 line-clamp-2 flex-grow">{course.description}</p>
-
-                                <div className="grid grid-cols-2 gap-3 mt-2">
-                                    <Link
-                                        href={`/instructor/dashboard/manage/${course.id}`}
-                                        className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition-colors font-medium"
-                                    >
-                                        <Edit3 className="w-4 h-4" />
-                                        Edit
-                                    </Link>
-                                    <button
-                                        onClick={() => handleDeleteCourse(course.id)}
-                                        className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg transition-colors font-medium disabled:opacity-50"
-                                        disabled={isDeleting === course.id}
-                                    >
-                                        {isDeleting === course.id ? (
-                                            <div className="animate-spin h-4 w-4 border-2 border-red-700 border-t-transparent rounded-full"></div>
-                                        ) : (
-                                            <>
-                                                <Trash2 className="w-4 h-4" />
-                                                Delete
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            ) : (
+            ) : courses.length === 0 && pagination.totalCount === 0 ? (
                 <div className="flex flex-col items-center justify-center bg-gray-50 p-12 rounded-xl shadow-sm min-h-[350px] border border-gray-200">
                     <div className="bg-white p-4 rounded-full mb-4 shadow-sm">
                         <BookOpen className="h-16 w-16 text-blue-400" />
                     </div>
                     <h3 className="text-xl font-semibold text-gray-800 mb-2">No Courses Found</h3>
                     <p className="text-gray-600 mb-6 max-w-md text-center">
-                        {searchQuery
-                            ? "No courses match your search. Try different keywords."
-                            : "You haven't created any courses yet. Start by creating your first course."}
+                        You haven't created any courses yet. Start by creating your first course.
                     </p>
                     <Link
                         href="/instructor/dashboard/create"
@@ -240,15 +211,129 @@ const ManageCoursesPage = () => {
                         Create Your First Course
                     </Link>
                 </div>
-            )}
+            ) : courses.length > 0 ? (
+                <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {courses.map(course => (
+                            <div key={course.id} className="rounded-xl overflow-hidden shadow-md flex flex-col bg-white border border-gray-200 h-full transition-all hover:shadow-lg hover:-translate-y-1 duration-200">
+                                <div className="w-full aspect-video relative">
+                                    <Image
+                                        src={course.image || '/placeholder-course.jpg'}
+                                        alt={course.title}
+                                        fill
+                                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                        className="object-cover"
+                                    />
+                                    <div className="absolute top-3 right-3">
+                                        <span className={`px-3 py-1 rounded-full text-xs font-medium shadow-sm ${
+                                            course.isApproved ? "bg-green-500 text-white" : "bg-yellow-400 text-gray-800"
+                                        }`}>
+                                            {course.isApproved ? "Published" : "Draft"}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="p-5 flex-grow flex flex-col">
+                                    <div className="flex justify-between items-start mb-1">
+                                        <h2 className="text-xl font-semibold line-clamp-1">{course.title}</h2>
+                                        {course.type && (
+                                            <span className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-md">
+                                                <Tag className="w-3 h-3 mr-1" />
+                                                {courseTypeLabels[course.type] || course.type}
+                                            </span>
+                                        )}
+                                    </div>
 
-            {courses && courses.length > 0 && filteredCourses?.length === 0 && (
+                                    <div className="flex flex-wrap gap-2 mb-2">
+                                        {course.duration && (
+                                            <span className="inline-flex items-center text-xs text-gray-600">
+                                                <Clock className="w-3 h-3 mr-1" />
+                                                {course.duration}
+                                            </span>
+                                        )}
+                                        {course.difficulty && (
+                                            <span className="inline-flex items-center text-xs text-gray-600 ml-2">
+                                                <Users className="w-3 h-3 mr-1" />
+                                                {course.difficulty.replace('_', ' ').toLowerCase()
+                                                    .replace(/\b\w/g, char => char.toUpperCase())}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <p className="text-gray-600 mb-5 line-clamp-2 flex-grow">{course.description}</p>
+
+                                    <div className="grid grid-cols-2 gap-3 mt-2">
+                                        <Link
+                                            href={`/instructor/dashboard/manage/${course.id}`}
+                                            className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition-colors font-medium"
+                                        >
+                                            <Edit3 className="w-4 h-4" />
+                                            Edit
+                                        </Link>
+                                        <button
+                                            onClick={() => handleDeleteCourse(course.id)}
+                                            className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg transition-colors font-medium disabled:opacity-50"
+                                            disabled={isDeleting === course.id}
+                                        >
+                                            {isDeleting === course.id ? (
+                                                <div className="animate-spin h-4 w-4 border-2 border-red-700 border-t-transparent rounded-full"></div>
+                                            ) : (
+                                                <>
+                                                    <Trash2 className="w-4 h-4" />
+                                                    Delete
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Pagination Controls */}
+                    {pagination.totalPages > 1 && (
+                        <div className="flex justify-center mt-8">
+                            <div className="flex items-center bg-white border border-gray-300 rounded-lg overflow-hidden shadow-sm">
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                    disabled={currentPage === 1}
+                                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                                >
+                                    <ChevronLeft className="h-5 w-5 mr-1" />
+                                    Previous
+                                </button>
+                                <div className="px-4 py-2 border-l border-r border-gray-300 bg-gray-50">
+                                    Page {pagination.currentPage} of {pagination.totalPages}
+                                </div>
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, pagination.totalPages))}
+                                    disabled={currentPage === pagination.totalPages}
+                                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                                >
+                                    Next
+                                    <ChevronRight className="h-5 w-5 ml-1" />
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </>
+            ) : (
                 <div className="flex flex-col items-center justify-center bg-gray-50 p-8 rounded-xl shadow-sm border border-gray-200">
                     <h3 className="text-lg font-semibold text-gray-700 mb-2">No matching courses</h3>
-                    <p className="text-gray-600 text-center">Try adjusting your search or filter criteria.</p>
+                    <p className="text-gray-600 text-center mb-4">
+                        {searchQuery
+                            ? "No courses match your search criteria. Try different keywords."
+                            : "No courses match your filter settings."}
+                    </p>
+                    <button
+                        onClick={resetFilters}
+                        className="text-blue-600 hover:text-blue-700 font-medium flex items-center"
+                    >
+                        Clear filters
+                    </button>
                 </div>
             )}
         </div>
     );
 };
+
 export default ManageCoursesPage;

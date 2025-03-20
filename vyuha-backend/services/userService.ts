@@ -1,41 +1,63 @@
 import prisma from "../config/dbConfig";
 import supabase from "../config/supabase";
-// Add to services/userService.ts
-import {PrismaClient} from '@prisma/client';
 
 export async function getUser(id: string) {
-    const user = await prisma.user.findUnique({
-        where: {
-            id
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                image: true,
+                collegeID: true,
+                branch: true
+            }
+        });
+
+        if (!user) {
+            throw new Error(`User with ID ${id} not found`);
         }
-    });
-    return user;
+
+        return user;
+    } catch (error) {
+        console.error(`Error fetching user ${id}:`, error);
+        throw new Error(`Failed to retrieve user: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
 }
 export async function updateUserPhoto(id: string, photoBuffer: Buffer, mimetype: string) {
     try {
+        // Validate inputs
+        if (!photoBuffer || photoBuffer.length === 0) {
+            throw new Error("Invalid photo data");
+        }
+
         const bucketName = process.env.SUPABASE_BUCKET_NAME || "vyuha-uploads";
-        const filePath = `public/${id}.${mimetype.split("/")[1]}`;
-        const photoBlob = new Blob([photoBuffer], { type: mimetype });
-        const { data, error: uploadError } = await supabase.storage
+        const fileExtension = mimetype.split("/")[1];
+        const filePath = `public/${id}.${fileExtension}`;
+
+        // Upload directly using the buffer in Node.js
+        const { error: uploadError } = await supabase.storage
             .from(bucketName)
-            .upload(filePath, photoBlob, {
+            .upload(filePath, photoBuffer, {
+                contentType: mimetype,
                 cacheControl: "3600",
                 upsert: true,
             });
-        console.log("Uploading to bucket:", bucketName);
+
         if (uploadError) {
             throw new Error(`Failed to upload image: ${uploadError.message}`);
         }
-        const publicUrl = supabase.storage.from(bucketName).getPublicUrl(filePath).data.publicUrl;
-        if (!publicUrl) {
-            throw new Error("Failed to get public URL of the uploaded image");
-        }
+
+        const { data: urlData } = supabase.storage.from(bucketName).getPublicUrl(filePath);
+        if (!urlData) throw new Error("Failed to get public URL");
+
         const user = await prisma.user.update({
             where: { id },
-            data: {
-                image: publicUrl,
-            },
+            data: { image: urlData.publicUrl },
         });
+
         return user;
     } catch (error) {
         console.error("Error updating user photo:", error);
@@ -90,32 +112,52 @@ export const getCourses = async () => {
     });
 }
 
-export const submitAssignment = async (studentId: string, assignmentId: string, submissionUrl: string) => {
-    const enrollment = await prisma.enrollment.findFirst({
-        where: {
-            studentId,
-            courseId: assignmentId
+export async function submitAssignment(studentId: string, assignmentId: string, submissionUrl: string) {
+    try {
+        const assignment = await prisma.assignment.findUnique({
+            where: { id: assignmentId },
+            select: { courseId: true }
+        });
+        if (!assignment) {
+            throw new Error(`Assignment with ID ${assignmentId} not found`);
         }
-    });
-    if (!enrollment) {
-        throw new Error('Enrollment not found');
-    }
-    return prisma.submission.upsert({
-        where: {
-            studentId_assignmentId: {
+        const enrollment = await prisma.enrollment.findFirst({
+            where: {
                 studentId,
-                assignmentId
+                courseId: assignment.courseId
             }
-        },
-        update: {
-            submissionUrl,
-            submittedAt: new Date()
-        },
-        create: {
-            studentId,
-            assignmentId,
-            submissionUrl,
-            enrollmentId: enrollment.id
+        });
+
+        if (!enrollment) {
+            throw new Error(`Student ${studentId} is not enrolled in the course for this assignment`);
         }
-    });
-};
+
+        // Use a transaction to ensure data consistency
+        return prisma.$transaction(async (tx) => {
+            // Create or update the submission
+            const submission = await tx.submission.upsert({
+                where: {
+                    studentId_assignmentId: {
+                        studentId,
+                        assignmentId
+                    }
+                },
+                update: {
+                    submissionUrl,
+                    submittedAt: new Date()
+                },
+                create: {
+                    studentId,
+                    assignmentId,
+                    submissionUrl,
+                    enrollmentId: enrollment.id
+                }
+            });
+
+            return submission;
+        });
+    } catch (error) {
+        console.error("Error submitting assignment:", error);
+        throw new Error(`Failed to submit assignment: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+}

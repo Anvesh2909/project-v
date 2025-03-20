@@ -141,12 +141,21 @@ const ManageCoursePage = () => {
             setRequiresSubmission(false);
             setReloadTrigger(prev => prev + 1);
         } catch (e: any) {
-            console.error("Error adding lecture:", e.response?.data || e.message);
+            console.error("Error adding lecture:", e);
+            console.error("Response data:", e.response?.data);
+            console.error("Status:", e.response?.status);
+            alert(`Error: ${e.response?.data?.message || e.message || "Unknown server error"}`);
         }
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            if (file.size > 100 * 1024 * 1024) { // 100MB limit example
+                alert("File is too large. Maximum file size is 100MB.");
+                e.target.value = '';
+                return;
+            }
             setNewLectureVideo(e.target.files[0]);
         }
     };

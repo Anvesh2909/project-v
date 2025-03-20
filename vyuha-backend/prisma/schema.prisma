@@ -155,6 +155,7 @@ model Assignment {
   course      Course       @relation(fields: [courseId], references: [id])
   courseId    String
   submissions Submission[]
+  maxMarks    Float
 }
 
 model Submission {

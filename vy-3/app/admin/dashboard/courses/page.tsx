@@ -3,7 +3,7 @@ import React, { useContext, useState } from 'react'
 import { AdminContext } from '@/context/AdminContext'
 import axios from 'axios'
 import Image from 'next/image'
-import { Check, Trash2, X, AlertCircle, CheckCircle } from 'lucide-react'
+import { Check, Trash2, X, AlertCircle, CheckCircle, ChevronLeft, ChevronRight, Search } from 'lucide-react'
 
 const CoursesPage = () => {
     const adminContext = useContext(AdminContext)
@@ -14,6 +14,8 @@ const CoursesPage = () => {
         visible: boolean;
     }>({ message: '', type: 'success', visible: false })
     const [searchQuery, setSearchQuery] = useState<string>('')
+    const [currentPage, setCurrentPage] = useState(1)
+    const [coursesPerPage, setCoursesPerPage] = useState(9) // Now configurable
     const courses = adminContext?.courses || []
 
     const showNotification = (message: string, type: 'success' | 'error') => {
@@ -76,6 +78,23 @@ const CoursesPage = () => {
         course.description.toLowerCase().includes(searchQuery.toLowerCase())
     )
 
+    // Calculate pagination values
+    const indexOfLastCourse = currentPage * coursesPerPage
+    const indexOfFirstCourse = indexOfLastCourse - coursesPerPage
+    const currentCourses = filteredCourses.slice(indexOfFirstCourse, indexOfLastCourse)
+    const totalPages = Math.ceil(filteredCourses.length / coursesPerPage)
+
+    // Reset to first page when search query changes
+    React.useEffect(() => {
+        setCurrentPage(1)
+    }, [searchQuery, coursesPerPage])
+
+    const goToPage = (page: number) => {
+        if (page > 0 && page <= totalPages) {
+            setCurrentPage(page)
+        }
+    }
+
     if (!adminContext) {
         return <div className="p-4">Loading admin context...</div>
     }
@@ -101,20 +120,28 @@ const CoursesPage = () => {
                 </div>
             )}
 
-            <h1 className="text-2xl font-bold mb-6">Course Management</h1>
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-bold">Course Management</h1>
+                <span className="bg-blue-100 text-blue-800 text-xs font-medium px-3 py-1 rounded-full">
+                    {filteredCourses.length} Courses
+                </span>
+            </div>
 
-            <div className="mb-6">
+            <div className="mb-6 relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="text-gray-400 h-4 w-4" />
+                </div>
                 <input
                     type="text"
-                    placeholder="Search courses..."
+                    placeholder="Search by title or description..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full p-3 border rounded-lg"
+                    className="pl-10 w-full p-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none transition-all"
                 />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredCourses.map((course) => (
+                {currentCourses.map((course) => (
                     <div key={course.id} className="rounded-xl overflow-hidden shadow-md flex flex-col bg-white border border-gray-200 h-full">
                         <div className="w-full aspect-video relative">
                             <Image
@@ -199,7 +226,74 @@ const CoursesPage = () => {
                     </div>
                 )}
             </div>
+
+            {/* Enhanced Pagination Controls */}
+            {filteredCourses.length > 0 && (
+                <div className="mt-8 border-t pt-6">
+                    <div className="flex items-center justify-between">
+                        <div className="text-sm text-gray-500">
+                            Showing {indexOfFirstCourse + 1} to {Math.min(indexOfLastCourse, filteredCourses.length)} of {filteredCourses.length} courses
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => goToPage(currentPage - 1)}
+                                disabled={currentPage === 1}
+                                className="p-2 rounded-md border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                            </button>
+
+                            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                // Create a window of 5 pages centered around current page
+                                const startPage = Math.max(1, currentPage - 2);
+                                const page = startPage + i;
+
+                                if (page <= totalPages) {
+                                    return (
+                                        <button
+                                            key={page}
+                                            onClick={() => goToPage(page)}
+                                            className={`w-8 h-8 rounded-md ${
+                                                currentPage === page
+                                                    ? 'bg-blue-600 text-white'
+                                                    : 'border border-gray-300 hover:bg-gray-50'
+                                            }`}
+                                        >
+                                            {page}
+                                        </button>
+                                    );
+                                }
+                                return null;
+                            })}
+
+                            <button
+                                onClick={() => goToPage(currentPage + 1)}
+                                disabled={currentPage === totalPages}
+                                className="p-2 rounded-md border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <ChevronRight className="h-4 w-4" />
+                            </button>
+
+                            <select
+                                value={coursesPerPage}
+                                onChange={(e) => {
+                                    setCoursesPerPage(Number(e.target.value));
+                                    setCurrentPage(1);
+                                }}
+                                className="ml-4 border border-gray-300 rounded-md px-2 py-1 text-sm"
+                            >
+                                <option value="6">6 per page</option>
+                                <option value="9">9 per page</option>
+                                <option value="12">12 per page</option>
+                                <option value="15">15 per page</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
+
 export default CoursesPage

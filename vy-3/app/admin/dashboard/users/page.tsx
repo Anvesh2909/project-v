@@ -2,8 +2,9 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { AdminContext } from '@/context/AdminContext';
 import axios from 'axios';
-import { Trash2, Search, User, UserPlus } from 'lucide-react';
+import { Trash2, Search, User, UserPlus, ChevronLeft, ChevronRight, Copy } from 'lucide-react';
 import Link from 'next/link';
+
 const Page = () => {
     const context = useContext(AdminContext);
     const [users, setUsers] = useState(context?.users || []);
@@ -11,6 +12,11 @@ const Page = () => {
     const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedUser, setSelectedUser] = useState<string | null>(null);
+    const [copiedId, setCopiedId] = useState<string | null>(null);
+
+    // Pagination states
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
 
     useEffect(() => {
         if (context?.users) {
@@ -18,11 +24,22 @@ const Page = () => {
         }
     }, [context?.users]);
 
+    useEffect(() => {
+        // Reset to first page when search term changes
+        setCurrentPage(1);
+    }, [searchTerm]);
+
     const filteredUsers = users.filter(user =>
         user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.id?.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    // Calculate pagination
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentUsers = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
 
     const onDelete = async (userId: string) => {
         if (confirm(`Are you sure you want to delete user with ID: ${userId}?`)) {
@@ -45,6 +62,21 @@ const Page = () => {
         }
     };
 
+    const goToPage = (page: number) => {
+        if (page > 0 && page <= totalPages) {
+            setCurrentPage(page);
+        }
+    };
+
+    const copyToClipboard = (id: string) => {
+        navigator.clipboard.writeText(id)
+            .then(() => {
+                setCopiedId(id);
+                setTimeout(() => setCopiedId(null), 2000);
+            })
+            .catch(err => console.error('Failed to copy ID:', err));
+    };
+
     return (
         <div className="p-6 max-w-6xl mx-auto">
             <div className="flex justify-between items-center mb-6">
@@ -57,8 +89,8 @@ const Page = () => {
                         </button>
                     </Link>
                     <span className="bg-blue-100 text-blue-800 text-xs font-medium px-3 py-1 rounded-full">
-      {users.length} Users
-    </span>
+                        {users.length} Users
+                    </span>
                 </div>
             </div>
 
@@ -92,8 +124,9 @@ const Page = () => {
             {users.length > 0 ? (
                 <div className="bg-white shadow-lg rounded-xl overflow-hidden border">
                     {/* Table Header */}
-                    <div className="grid grid-cols-5 gap-4 bg-gray-50 p-4 font-medium text-gray-700 border-b">
+                    <div className="grid grid-cols-6 gap-4 bg-gray-50 p-4 font-medium text-gray-700 border-b">
                         <div>Profile</div>
+                        <div>ID</div>
                         <div>Name</div>
                         <div>Email</div>
                         <div>Role</div>
@@ -102,10 +135,10 @@ const Page = () => {
 
                     {/* Table Body */}
                     <div className="divide-y">
-                        {filteredUsers.map((user: any) => (
+                        {currentUsers.map((user: any) => (
                             <div
                                 key={user.id}
-                                className={`grid grid-cols-5 gap-4 p-4 items-center hover:bg-gray-50 transition-colors ${
+                                className={`grid grid-cols-6 gap-4 p-4 items-center hover:bg-gray-50 transition-colors ${
                                     selectedUser === user.id ? 'bg-blue-50' : ''
                                 }`}
                                 onClick={() => setSelectedUser(user.id === selectedUser ? null : user.id)}
@@ -125,6 +158,25 @@ const Page = () => {
                                             <User className="w-5 h-5 text-gray-500" />
                                         </div>
                                     )}
+                                </div>
+                                <div className="truncate flex items-center">
+                                    <span className="text-xs font-mono text-gray-600 max-w-[100px] truncate" title={user.id}>
+                                        {user.id}
+                                    </span>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            copyToClipboard(user.id);
+                                        }}
+                                        className="ml-1 p-1 text-gray-400 hover:text-gray-600 rounded-md"
+                                        title="Copy ID"
+                                    >
+                                        {copiedId === user.id ? (
+                                            <span className="text-xs text-green-600">Copied!</span>
+                                        ) : (
+                                            <Copy className="h-3 w-3" />
+                                        )}
+                                    </button>
                                 </div>
                                 <div className="truncate font-medium">{user.name || "N/A"}</div>
                                 <div className="truncate text-gray-600">{user.email || "N/A"}</div>
@@ -153,6 +205,69 @@ const Page = () => {
                             </div>
                         ))}
                     </div>
+
+                    {/* Pagination Controls */}
+                    {filteredUsers.length > 0 && (
+                        <div className="p-4 flex items-center justify-between border-t">
+                            <div className="text-sm text-gray-500">
+                                Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredUsers.length)} of {filteredUsers.length} users
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => goToPage(currentPage - 1)}
+                                    disabled={currentPage === 1}
+                                    className="p-2 rounded-md border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </button>
+
+                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                    // Create a window of 5 pages centered around current page
+                                    const startPage = Math.max(1, currentPage - 2);
+                                    const page = startPage + i;
+
+                                    if (page <= totalPages) {
+                                        return (
+                                            <button
+                                                key={page}
+                                                onClick={() => goToPage(page)}
+                                                className={`w-8 h-8 rounded-md ${
+                                                    currentPage === page
+                                                        ? 'bg-blue-600 text-white'
+                                                        : 'border border-gray-300 hover:bg-gray-50'
+                                                }`}
+                                            >
+                                                {page}
+                                            </button>
+                                        );
+                                    }
+                                    return null;
+                                })}
+
+                                <button
+                                    onClick={() => goToPage(currentPage + 1)}
+                                    disabled={currentPage === totalPages}
+                                    className="p-2 rounded-md border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </button>
+
+                                <select
+                                    value={itemsPerPage}
+                                    onChange={(e) => {
+                                        setItemsPerPage(Number(e.target.value));
+                                        setCurrentPage(1);
+                                    }}
+                                    className="ml-4 border border-gray-300 rounded-md px-2 py-1 text-sm"
+                                >
+                                    <option value="5">5 per page</option>
+                                    <option value="10">10 per page</option>
+                                    <option value="25">25 per page</option>
+                                    <option value="50">50 per page</option>
+                                </select>
+                            </div>
+                        </div>
+                    )}
                 </div>
             ) : (
                 <div className="p-12 text-center bg-gray-50 rounded-lg border">
@@ -170,4 +285,5 @@ const Page = () => {
         </div>
     );
 };
+
 export default Page;

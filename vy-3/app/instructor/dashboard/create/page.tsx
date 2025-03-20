@@ -50,7 +50,11 @@ const CreateCoursePage = () => {
         e.preventDefault();
         setLoading(true);
         setError('');
-
+        if (!currentToken) {
+            setError('Authentication token is missing. Please log in again.');
+            setLoading(false);
+            return;
+        }
         if (!imageFile) {
             setError('Please select a course image');
             setLoading(false);
@@ -67,6 +71,8 @@ const CreateCoursePage = () => {
             formData.append('duration', duration);
             formData.append('difficulty', difficulty);
 
+            console.log('Submitting with token:', currentToken?.substring(0, 10) + '...');
+
             const response = await axios.post(
                 `${backendUrl}/ins/createCourse`,
                 formData,
@@ -77,19 +83,26 @@ const CreateCoursePage = () => {
                     }
                 }
             );
-            console.log('Course created successfully:', response.data);
 
-            // Reset form fields
-            setTitle('');
-            setDescription('');
-            setCourseType('');
-            setImageFile(null);
-            setImagePreview('');
-            setDuration('');
-            setDifficulty('BEGINNER');
-        } catch (error) {
+            console.log('Course created successfully:', response.data);
+            router.push('/instructor/dashboard/manage'); // Redirect after success
+
+        } catch (error: any) {
             console.error('Error creating course:', error);
-            setError('Failed to create course. Please try again.');
+            if (error.response) {
+                // The request was made and the server responded with a status code
+                if (error.response.status === 401) {
+                    setError('Authentication failed. Please log in again.');
+                } else {
+                    setError(`Server error: ${error.response.status} - ${error.response.data.message || 'Unknown error'}`);
+                }
+            } else if (error.request) {
+                // The request was made but no response was received
+                setError('No response from server. Please check your internet connection.');
+            } else {
+                // Something happened in setting up the request
+                setError(`Request failed: ${error.message}`);
+            }
         } finally {
             setLoading(false);
         }
