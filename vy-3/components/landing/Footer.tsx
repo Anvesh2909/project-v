@@ -74,9 +74,8 @@ const Footer = () => {
                                 <a href="mailto:info@lurnex.edu" className="text-gray-600 hover:text-blue-600">info@lurnex.edu</a>
                             </li>
                             <li className="text-gray-600 mt-4">
-                                University Campus, <br />
-                                Innovation Center, <br />
-                                Room 204
+                                KL University, <br />
+                                Student Academy Center. <br />
                             </li>
                         </ul>
                     </div>
