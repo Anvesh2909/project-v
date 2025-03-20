@@ -36,7 +36,11 @@ export const updateUserPhotoController = async (req: Request, res: Response) => 
 };
 export const getUsersController = async (req: Request, res: Response) => {
     try {
-        const response = await getUsers();
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 10;
+        const searchTerm = req.query.search as string || '';
+
+        const response = await getUsers(page, limit, searchTerm);
         res.status(200).json(response);
     } catch (error) {
         console.error("Error in getUsersController:", error);

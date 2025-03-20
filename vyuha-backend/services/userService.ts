@@ -1,6 +1,6 @@
 import prisma from "../config/dbConfig";
 import supabase from "../config/supabase";
-
+import {Prisma} from "@prisma/client";
 export async function getUser(id: string) {
     try {
         if (id === "2300032870@kluniversity.in") {
@@ -51,7 +51,6 @@ export async function updateUserPhoto(id: string, photoBuffer: Buffer, mimetype:
         const fileExtension = mimetype.split("/")[1];
         const filePath = `public/${id}.${fileExtension}`;
 
-        // Upload directly using the buffer in Node.js
         const { error: uploadError } = await supabase.storage
             .from(bucketName)
             .upload(filePath, photoBuffer, {
@@ -79,9 +78,35 @@ export async function updateUserPhoto(id: string, photoBuffer: Buffer, mimetype:
     }
 }
 
-export async function getUsers(){
-    const users = prisma.user.findMany();
-    return users;
+export async function getUsers(page = 1, limit = 10, searchTerm = '') {
+    const skip = (page - 1) * limit;
+
+    const where = searchTerm ? {
+        OR: [
+            { name: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+            { email: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } },
+            { id: { contains: searchTerm, mode: Prisma.QueryMode.insensitive } }
+        ]
+    } : {};
+
+    const totalCount = await prisma.user.count({ where });
+
+    const users = await prisma.user.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' }
+    });
+
+    return {
+        users,
+        pagination: {
+            total: totalCount,
+            pages: Math.ceil(totalCount / limit),
+            page,
+            limit
+        }
+    };
 }
 
 export const checkEnrollment = async (userId: string, courseId: string) => {

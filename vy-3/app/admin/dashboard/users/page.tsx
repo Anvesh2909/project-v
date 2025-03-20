@@ -7,7 +7,7 @@ import Link from 'next/link';
 
 const Page = () => {
     const context = useContext(AdminContext);
-    const [users, setUsers] = useState(context?.users || []);
+    const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -17,29 +17,46 @@ const Page = () => {
     // Pagination states
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [totalUsers, setTotalUsers] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
 
+    // Add debounce for search to avoid too many requests
     useEffect(() => {
-        if (context?.users) {
-            setUsers(context.users);
-        }
-    }, [context?.users]);
+        const timer = setTimeout(() => {
+            fetchUsers();
+        }, 300);
 
-    useEffect(() => {
-        // Reset to first page when search term changes
-        setCurrentPage(1);
+        return () => clearTimeout(timer);
     }, [searchTerm]);
 
-    const filteredUsers = users.filter(user =>
-        user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.id?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    useEffect(() => {
+        fetchUsers();
+    }, [context?.backendUrl, context?.adminToken, currentPage, itemsPerPage]);
 
-    // Calculate pagination
-    const indexOfLastItem = currentPage * itemsPerPage;
-    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentUsers = filteredUsers.slice(indexOfFirstItem, indexOfLastItem);
-    const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+    const fetchUsers = async () => {
+        if (!context?.backendUrl || !context?.adminToken) return;
+
+        setLoading(true);
+        try {
+            const response = await axios.get(`${context.backendUrl}/admin/getUsers`, {
+                headers: { token: context.adminToken },
+                params: {
+                    page: currentPage,
+                    limit: itemsPerPage,
+                    search: searchTerm
+                }
+            });
+
+            setUsers(response.data.users);
+            setTotalUsers(response.data.pagination.total);
+            setTotalPages(response.data.pagination.pages);
+        } catch (e) {
+            setError("Failed to fetch users");
+            console.error("Error fetching users:", e);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const onDelete = async (userId: string) => {
         if (confirm(`Are you sure you want to delete user with ID: ${userId}?`)) {
@@ -52,7 +69,8 @@ const Page = () => {
                     },
                     data: { studentId: userId }
                 });
-                setUsers(users.filter(user => user.id !== userId));
+                // Refresh users after delete
+                fetchUsers();
             } catch (e) {
                 setError("Failed to delete user");
                 console.error("Error deleting user:", e);
@@ -89,7 +107,7 @@ const Page = () => {
                         </button>
                     </Link>
                     <span className="bg-blue-100 text-blue-800 text-xs font-medium px-3 py-1 rounded-full">
-                        {users.length} Users
+                        {totalUsers} Users
                     </span>
                 </div>
             </div>
@@ -135,7 +153,7 @@ const Page = () => {
 
                     {/* Table Body */}
                     <div className="divide-y">
-                        {currentUsers.map((user: any) => (
+                        {users.map((user: any) => (
                             <div
                                 key={user.id}
                                 className={`grid grid-cols-6 gap-4 p-4 items-center hover:bg-gray-50 transition-colors ${
@@ -207,10 +225,10 @@ const Page = () => {
                     </div>
 
                     {/* Pagination Controls */}
-                    {filteredUsers.length > 0 && (
+                    {totalUsers > 0 && (
                         <div className="p-4 flex items-center justify-between border-t">
                             <div className="text-sm text-gray-500">
-                                Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredUsers.length)} of {filteredUsers.length} users
+                                Showing {users.length} of {totalUsers} users
                             </div>
                             <div className="flex items-center gap-2">
                                 <button
@@ -222,7 +240,6 @@ const Page = () => {
                                 </button>
 
                                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                    // Create a window of 5 pages centered around current page
                                     const startPage = Math.max(1, currentPage - 2);
                                     const page = startPage + i;
 
@@ -273,13 +290,6 @@ const Page = () => {
                 <div className="p-12 text-center bg-gray-50 rounded-lg border">
                     <User className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                     <p className="text-gray-500 font-medium">No users found.</p>
-                </div>
-            )}
-
-            {users.length > 0 && filteredUsers.length === 0 && (
-                <div className="p-8 text-center bg-gray-50 rounded-lg border mt-6">
-                    <Search className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-gray-600">No users match your search criteria.</p>
                 </div>
             )}
         </div>
