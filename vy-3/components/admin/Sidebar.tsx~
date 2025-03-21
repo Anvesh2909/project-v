@@ -3,7 +3,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, Book, Calendar, Settings, LogOut, ChevronRight, MessageSquare  } from "lucide-react";
+import { Users, Book, Calendar, Settings, LogOut, ChevronRight } from "lucide-react";
 import { AdminContext } from "@/context/AdminContext";
 
 const Sidebar = () => {

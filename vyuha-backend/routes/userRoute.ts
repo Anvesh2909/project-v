@@ -3,8 +3,8 @@ const userRouter = express.Router();
 import {
     getAllEnrollments, getChapterController,
     getCoursesController,
-    getEnrollementStatus, getLectureController,
-    getUserController, setEnrollmentController,
+    getEnrollementStatus, getFeedbackByIdController, getLectureController,
+    getUserController, getUserFeedbackController, setEnrollmentController, submitFeedbackController,
     updateUserPhotoController
 } from "../controllers/userController";
 import {authMiddleware} from "../middlewares/authMiddleware";
@@ -27,4 +27,6 @@ userRouter.get("/getLectures",authMiddleware,getLectureController);
 userRouter.get("/getAssignments/:id",authMiddleware,getAssignmentsController);
 userRouter.post("/submitAssignment",authMiddleware,upload,setSubmissionController);
 userRouter.get("/submissions", authMiddleware, getSubmissionsController);
+userRouter.post("/submitSubmission",authMiddleware,submitFeedbackController);
+userRouter.get("/getUserFeedback/:userId", authMiddleware, getUserFeedbackController);
 export default userRouter;

@@ -147,8 +147,7 @@ export const getFeedbackByIdController = async (req: Request, res: Response) => 
         const feedback = await getFeedbackById(id);
 
         if (!feedback) {
-            res.status(404).json({ error: "Feedback not found" });
-            return;
+            return res.status(404).json({ error: "Feedback not found" });
         }
 
         res.status(200).json(feedback);
@@ -164,8 +163,7 @@ export const updateFeedbackStatusController = async (req: Request, res: Response
         const { status, adminId, implementationNotes, rejectionReason, pointsAwarded, pointsAmount } = req.body;
 
         if (!id || !status || !adminId) {
-            res.status(400).json({ error: "Missing required fields" });
-            return;
+            return res.status(400).json({ error: "Missing required fields" });
         }
 
         const updatedFeedback = await updateFeedbackStatus(id, status, adminId, {
@@ -203,8 +201,7 @@ export const getUserFeedbackController = async (req: Request, res: Response) => 
         const { userId } = req.params;
 
         if (!userId) {
-            res.status(400).json({ error: "User ID is required" });
-            return;
+            return res.status(400).json({ error: "User ID is required" });
         }
 
         const feedback = await getUserFeedback(userId);

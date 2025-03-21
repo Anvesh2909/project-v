@@ -41,7 +41,6 @@ export async function getUser(id: string) {
 
 export async function updateUserPhoto(id: string, photoBuffer: Buffer, mimetype: string) {
     try {
-        // Validate inputs
         if (!photoBuffer || photoBuffer.length === 0) {
             throw new Error("Invalid photo data");
         }
@@ -205,5 +204,188 @@ export async function submitAssignment(studentId: string, assignmentId: string, 
     } catch (error) {
         console.error("Error submitting assignment:", error);
         throw new Error(`Failed to submit assignment: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+}
+export async function submitFeedback(
+    userId: string,
+    data: {
+        type: 'BUG' | 'FEATURE' | 'GENERAL',
+        title: string,
+        description: string,
+        rating: number,
+        domain: 'TEC' | 'SIL' | 'EDU',
+        contactEmail?: string
+    }
+) {
+    try {
+        // Validate user exists
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { id: true }
+        });
+
+        if (!user) {
+            throw new Error(`User with ID ${userId} not found`);
+        }
+
+        // Create feedback entry
+        const feedback = await prisma.feedback.create({
+            data: {
+                type: data.type as any, // Cast to Prisma enum
+                title: data.title,
+                description: data.description,
+                rating: data.rating,
+                domain: data.domain as any, // Cast to Prisma enum
+                contactEmail: data.contactEmail,
+                submittedBy: { connect: { id: userId } }
+            }
+        });
+
+        return feedback;
+    } catch (error) {
+        handleError("submit feedback", error);
+    }
+}
+
+export async function getFeedbackById(id: string) {
+    try {
+        return prisma.feedback.findUnique({
+            where: { id },
+            include: {
+                submittedBy: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        image: true
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        handleError(`retrieve feedback ${id}`, error);
+    }
+}
+
+export async function updateFeedbackStatus(
+    id: string,
+    status: 'PENDING' | 'REVIEWED' | 'IMPLEMENTED' | 'REJECTED',
+    adminId: string,
+    data?: {
+        implementationNotes?: string,
+        rejectionReason?: string,
+        pointsAwarded?: boolean,
+        pointsAmount?: number
+    }
+) {
+    try {
+        const updateData: any = {
+            status,
+            reviewedAt: new Date(),
+            reviewedBy: adminId,
+            ...data
+        };
+
+        // If feedback is implemented and points are awarded, update user's points
+        if (status === 'IMPLEMENTED' && data?.pointsAwarded && data?.pointsAmount) {
+            const feedback = await prisma.feedback.findUnique({
+                where: { id },
+                select: { userId: true }
+            });
+
+            if (feedback) {
+                // Update in transaction to ensure both operations succeed
+                return prisma.$transaction(async (tx) => {
+                    // Update the feedback
+                    const updatedFeedback = await tx.feedback.update({
+                        where: { id },
+                        data: updateData,
+                    });
+
+                    // Update the user's points (assuming there's a silPoints field)
+                    await tx.user.update({
+                        where: { id: feedback.userId },
+                        data: {
+                            silPoints: {
+                                increment: data.pointsAmount
+                            }
+                        }
+                    });
+
+                    return updatedFeedback;
+                });
+            }
+        }
+
+        // If not awarding points, just update the feedback
+        return prisma.feedback.update({
+            where: { id },
+            data: updateData
+        });
+    } catch (error) {
+        handleError(`update feedback status ${id}`, error);
+    }
+}
+
+export async function getAllFeedback(
+    page = 1,
+    limit = 10,
+    status?: 'PENDING' | 'REVIEWED' | 'IMPLEMENTED' | 'REJECTED',
+    domain?: 'TEC' | 'SIL' | 'EDU'
+) {
+    try {
+        const skip = (page - 1) * limit;
+        const where: any = {};
+
+        if (status) {
+            where.status = status;
+        }
+
+        if (domain) {
+            where.domain = domain;
+        }
+
+        const [totalCount, feedback] = await Promise.all([
+            prisma.feedback.count({ where }),
+            prisma.feedback.findMany({
+                where,
+                skip,
+                take: limit,
+                orderBy: { submittedAt: 'desc' },
+                include: {
+                    submittedBy: {
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true,
+                            image: true
+                        }
+                    }
+                }
+            })
+        ]);
+
+        return {
+            feedback,
+            pagination: {
+                total: totalCount,
+                pages: Math.ceil(totalCount / limit),
+                page,
+                limit
+            }
+        };
+    } catch (error) {
+        handleError("fetch feedback", error);
+    }
+}
+
+export async function getUserFeedback(userId: string) {
+    try {
+        return prisma.feedback.findMany({
+            where: { userId },
+            orderBy: { submittedAt: 'desc' }
+        });
+    } catch (error) {
+        handleError(`fetch user feedback for ${userId}`, error);
     }
 }

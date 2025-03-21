@@ -76,6 +76,7 @@ model User {
   createdCourses     Course[]         @relation("InstructorCourses")
   CourseApproval     CourseApproval[]
   Submission         Submission[]
+  feedback           Feedback[]
 }
 
 model Course {
@@ -268,4 +269,43 @@ model ClubMember {
   joinDate DateTime @default(now())
   club     Club     @relation(fields: [clubId], references: [id])
   clubId   String
+}
+
+enum FeedbackType {
+  BUG
+  FEATURE
+  GENERAL
+}
+
+enum FeedbackDomain {
+  TEC
+  SIL
+  EDU
+}
+
+enum FeedbackStatus {
+  PENDING
+  REVIEWED
+  IMPLEMENTED
+  REJECTED
+}
+
+model Feedback {
+  id                  String         @id @default(uuid())
+  type                FeedbackType
+  title               String
+  description         String
+  rating              Int
+  domain              FeedbackDomain
+  status              FeedbackStatus @default(PENDING)
+  submittedBy         User           @relation(fields: [userId], references: [id])
+  userId              String
+  contactEmail        String?
+  submittedAt         DateTime       @default(now())
+  reviewedAt          DateTime?
+  reviewedBy          String?
+  pointsAwarded       Boolean        @default(false)
+  pointsAmount        Int?
+  implementationNotes String?
+  rejectionReason     String?
 }

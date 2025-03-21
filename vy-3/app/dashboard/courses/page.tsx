@@ -4,7 +4,6 @@ import { Clock, Book, Search, Users, Filter, Grid, List, Award } from "lucide-re
 import Image from "next/image";
 import Link from "next/link";
 import { AppContext, Course } from "@/context/AppContext";
-import axios from "axios";
 const CoursesPage = () => {
     const context = useContext(AppContext);
     const [isLoading, setIsLoading] = useState(true);

@@ -1,5 +1,5 @@
 import express from "express";
-import {getAllFeedbackController, getUserController, getUsersController} from "../controllers/userController";
+import {getUserController, getUsersController} from "../controllers/userController";
 import {authMiddleware} from "../middlewares/authMiddleware";
 import {
     deleteCourseController,
@@ -21,5 +21,4 @@ adminRoute.get("/getCourses",getAllCoursesController);
 adminRoute.post("/addUser",authMiddleware,createStudentController);
 adminRoute.post("/addInstructor",authMiddleware,createInstructorController);
 adminRoute.post("/addMentor",authMiddleware,createMentorController);
-adminRoute.get("/getAllFeedback",authMiddleware,getAllFeedbackController);
 export default adminRoute;
