@@ -225,8 +225,8 @@ const FeedbackAdminPage = () => {
                                     </div>
                                 </div>
                                 <div className="mt-2 md:mt-0 text-sm text-gray-500">
-                                    <div>Submitted: {formatDate(feedback.createdAt)}</div>
-                                    <div>By: {feedback.userId || 'Anonymous'}</div>
+                                    <div>Submitted By:</div>
+                                    <div> {feedback.userId || 'Anonymous'}</div>
                                 </div>
                             </div>
 
