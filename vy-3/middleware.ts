@@ -8,29 +8,37 @@ export async function middleware(request: NextRequest) {
 
     const publicPaths = ['/', '/sign-in', '/admin/sign-in'];
 
+    let response = NextResponse.next();
+
+    if (!publicPaths.includes(pathname)) {
+        response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        response.headers.set('Pragma', 'no-cache');
+        response.headers.set('Expires', '0');
+    }
+
     try {
         if (token) {
             const { payload } = await jwtVerify(token, new TextEncoder().encode(process.env.JWT_SECRET));
             const role = payload.role;
 
             if (role === 'ADMIN') {
-                if (pathname.startsWith('/admin')) return NextResponse.next(); // ✅ Allow access
+                if (pathname.startsWith('/admin')) return response;
                 return NextResponse.redirect(new URL('/admin/dashboard', request.url));
             }
 
             if (role === 'MENTOR') {
-                if (pathname.startsWith('/mentor')) return NextResponse.next();
+                if (pathname.startsWith('/mentor')) return response;
                 return NextResponse.redirect(new URL('/mentor/dashboard', request.url));
             }
 
             if (role === 'INSTRUCTOR') {
-                if (pathname.startsWith('/instructor')) return NextResponse.next();
+                if (pathname.startsWith('/instructor')) return response;
                 return NextResponse.redirect(new URL('/instructor/dashboard/manage', request.url));
             }
 
             if (role === 'STUDENT') {
-                if (pathname.startsWith('/dashboard')) return NextResponse.next();
-                return NextResponse.redirect(new URL('/dashboard', request.url));
+                if (pathname.startsWith('/dashboard')) return response;
+                return NextResponse.redirect(new URL('/dashboard/courses', request.url));
             }
         } else {
             if (!publicPaths.includes(pathname)) {
@@ -42,7 +50,7 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/sign-in', request.url));
     }
 
-    return NextResponse.next();
+    return response;
 }
 
 export const config = {

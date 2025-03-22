@@ -337,5 +337,4 @@ const CoursesPage = () => {
         </div>
     )
 }
-
 export default CoursesPage

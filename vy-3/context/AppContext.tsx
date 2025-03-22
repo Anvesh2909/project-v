@@ -145,7 +145,7 @@ const AppContextProvider = (props: AppContextProviderProps) => {
         setData(null);
         localStorage.removeItem('token');
         Cookies.remove('token');
-        router.push('/sign-in');
+        window.location.replace('/sign-in');
     };
 
     const getData = async (currentToken: string = token): Promise<User | null> => {
