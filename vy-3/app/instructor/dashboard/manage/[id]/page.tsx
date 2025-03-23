@@ -39,16 +39,43 @@ const ManageCoursePage = () => {
     const [newAssignmentMaxMarks, setNewAssignmentMaxMarks] = useState(100);
     const [viewingAssignment, setViewingAssignment] = useState<any>(null);
     const [isViewAssignmentModalOpen, setIsViewAssignmentModalOpen] = useState(false);
+    // Quiz state variables
+    const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
+    const [quizzes, setQuizzes] = useState<any[]>([]);
+    const [newQuizTitle, setNewQuizTitle] = useState('');
+    const [newQuizTopic, setNewQuizTopic] = useState('');
+    const [newQuizQuestionCount, setNewQuizQuestionCount] = useState(5);
+    const [newQuizQuestionType, setNewQuizQuestionType] = useState('MULTIPLE_CHOICE');
+    const [newQuizDifficulty, setNewQuizDifficulty] = useState('BEGINNER');
+    const [selectedChapterForQuiz, setSelectedChapterForQuiz] = useState('');
+    const [selectedLectureForQuiz, setSelectedLectureForQuiz] = useState('');
+    const [viewingQuiz, setViewingQuiz] = useState<any>(null);
+    const [isViewQuizModalOpen, setIsViewQuizModalOpen] = useState(false);
     const handleViewLectureDetails = (lecture: any) => {
         setSelectedLecture(lecture);
         setIsModalOpen(true);
     };
-
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setSelectedLecture(null);
     };
+    useEffect(() => {
+        const fetchQuizzes = async () => {
+            try {
+                // Fetch quizzes for this course
+                const response = await axios.get(`${backendUrl}/ins/quiz/course/${courseId}`, {
+                    headers: { token: instructorToken }
+                });
+                setQuizzes(response.data?.quizzes || []);
+            } catch (error) {
+                console.error("Error fetching quizzes:", error);
+            }
+        };
 
+        if (courseId && instructorToken) {
+            fetchQuizzes();
+        }
+    }, [courseId, instructorToken, reloadTrigger, backendUrl]);
     useEffect(() => {
         const fetchCourseData = async () => {
             try {
@@ -105,7 +132,49 @@ const ManageCoursePage = () => {
             console.error("Error adding chapter:", e);
         }
     };
+    const handleAddQuiz = async () => {
+        if (!newQuizTitle.trim() || !newQuizTopic.trim()) {
+            return alert("Please fill all required fields");
+        }
 
+        try {
+            await axios.post(`${backendUrl}/ins/createQuiz`, {
+                title: newQuizTitle,
+                courseId,
+                chapterId: selectedChapterForQuiz || undefined,
+                lectureId: selectedLectureForQuiz || undefined,
+                topic: newQuizTopic,
+                questionCount: newQuizQuestionCount,
+                questionType: newQuizQuestionType,
+                difficulty: newQuizDifficulty
+            }, {
+                headers: { token: instructorToken }
+            });
+
+            setNewQuizTitle('');
+            setNewQuizTopic('');
+            setNewQuizQuestionCount(5);
+            setNewQuizQuestionType('MULTIPLE_CHOICE');
+            setNewQuizDifficulty('BEGINNER');
+            setSelectedChapterForQuiz('');
+            setSelectedLectureForQuiz('');
+            setIsQuizModalOpen(false);
+            setReloadTrigger(prev => prev + 1);
+        } catch (error: any) {
+            console.error("Error creating quiz:", error);
+            alert(`Error: ${error.response?.data?.error || error.message || "Failed to create quiz"}`);
+        }
+    };
+
+    const handleViewQuiz = (quiz: any) => {
+        setViewingQuiz(quiz);
+        setIsViewQuizModalOpen(true);
+    };
+
+    const closeQuizModal = () => {
+        setIsViewQuizModalOpen(false);
+        setViewingQuiz(null);
+    };
     const handleAddLecture = async () => {
         const isValid = newLectureTitle.trim() && selectedChapter &&
             ((resourceType === ResourceType.LINK && resourceUrl.trim()) ||
@@ -693,6 +762,275 @@ const ManageCoursePage = () => {
                                     type="button"
                                     className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
                                     onClick={closeAssignmentModal}
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Quizzes Section */}
+            <div className="mt-8 bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-semibold pb-2 border-b border-gray-200">Course Quizzes</h2>
+                    <button
+                        onClick={() => setIsQuizModalOpen(true)}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                    >
+                        Create Quiz
+                    </button>
+                </div>
+
+                {quizzes.length === 0 ? (
+                    <div className="p-8 text-center">
+                        <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p className="mt-2 text-gray-500">No quizzes yet. Create your first quiz for students.</p>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {quizzes.map((quiz) => (
+                            <div
+                                key={quiz.id}
+                                className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition duration-150 shadow-sm"
+                                onClick={() => handleViewQuiz(quiz)}
+                            >
+                                <div className="flex justify-between items-start">
+                                    <h3 className="text-lg font-medium text-gray-800">{quiz.title}</h3>
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800`}>
+          {quiz.questionType?.replace(/_/g, ' ')}
+        </span>
+                                </div>
+
+                                <p className="mt-2 text-gray-600">{quiz.topic}</p>
+
+                                <div className="mt-4 flex flex-wrap gap-3">
+                                    <div className="flex items-center text-sm bg-gray-100 px-2 py-1 rounded">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <span>{quiz.questions?.length || 0} questions</span>
+                                    </div>
+
+                                    {quiz.chapterId && (
+                                        <div className="flex items-center text-sm bg-gray-100 px-2 py-1 rounded">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 4v12l-4-2-4 2V4M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                            <span>Chapter-specific</span>
+                                        </div>
+                                    )}
+
+                                    {quiz.lectureId && (
+                                        <div className="flex items-center text-sm bg-gray-100 px-2 py-1 rounded">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+                                            </svg>
+                                            <span>Lecture-specific</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center">
+                                    <button className="text-sm text-blue-600 hover:text-blue-800 font-medium focus:outline-none flex items-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                        View details
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+            {/* Create Quiz Modal */}
+            {isQuizModalOpen && (
+                <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+                    <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={() => setIsQuizModalOpen(false)}></div>
+
+                        <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+                        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                                <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4 pb-2 border-b">
+                                    Create New Quiz
+                                </h3>
+
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Quiz Title</label>
+                                        <input
+                                            type="text"
+                                            value={newQuizTitle}
+                                            onChange={(e) => setNewQuizTitle(e.target.value)}
+                                            className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            placeholder="Enter quiz title"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Topic/Subject</label>
+                                        <textarea
+                                            value={newQuizTopic}
+                                            onChange={(e) => setNewQuizTopic(e.target.value)}
+                                            rows={3}
+                                            className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            placeholder="Describe the quiz topic in detail to generate relevant questions"
+                                        ></textarea>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Number of Questions</label>
+                                        <input
+                                            type="number"
+                                            value={newQuizQuestionCount}
+                                            onChange={(e) => setNewQuizQuestionCount(Number(e.target.value))}
+                                            min={1}
+                                            max={20}
+                                            className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Question Type</label>
+                                        <select
+                                            value={newQuizQuestionType}
+                                            onChange={(e) => setNewQuizQuestionType(e.target.value)}
+                                            className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        >
+                                            <option value="MULTIPLE_CHOICE">Multiple Choice</option>
+                                            <option value="TRUE_FALSE">True/False</option>
+                                            <option value="SHORT_ANSWER">Short Answer</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Difficulty Level</label>
+                                        <select
+                                            value={newQuizDifficulty}
+                                            onChange={(e) => setNewQuizDifficulty(e.target.value)}
+                                            className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        >
+                                            <option value="BEGINNER">Beginner</option>
+                                            <option value="INTERMEDIATE">Intermediate</option>
+                                            <option value="ADVANCED">Advanced</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Assign to Chapter (Optional)</label>
+                                        <select
+                                            value={selectedChapterForQuiz}
+                                            onChange={(e) => setSelectedChapterForQuiz(e.target.value)}
+                                            className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        >
+                                            <option value="">None (Course-wide quiz)</option>
+                                            {chapters.map((chapter: any) => (
+                                                <option key={chapter.id} value={chapter.id}>
+                                                    {chapter.title}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {selectedChapterForQuiz && (
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Assign to Lecture (Optional)</label>
+                                            <select
+                                                value={selectedLectureForQuiz}
+                                                onChange={(e) => setSelectedLectureForQuiz(e.target.value)}
+                                                className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            >
+                                                <option value="">None (Chapter-wide quiz)</option>
+                                                {chapters
+                                                    .find((chapter: any) => chapter.id === selectedChapterForQuiz)
+                                                    ?.lectures?.map((lecture: any) => (
+                                                        <option key={lecture.id} value={lecture.id}>
+                                                            {lecture.title}
+                                                        </option>
+                                                    ))}
+                                            </select>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                                <button
+                                    type="button"
+                                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+                                    onClick={handleAddQuiz}
+                                >
+                                    Create Quiz
+                                </button>
+                                <button
+                                    type="button"
+                                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                                    onClick={() => setIsQuizModalOpen(false)}
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* View Quiz Modal */}
+            {isViewQuizModalOpen && viewingQuiz && (
+                <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+                    <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onClick={closeQuizModal}></div>
+
+                        <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+                        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                            <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                                <div className="sm:flex sm:items-start">
+                                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                                        <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4 pb-2 border-b" id="modal-title">
+                                            Quiz Details
+                                        </h3>
+
+                                        <div className="mt-4 space-y-4">
+                                            <div>
+                                                <h4 className="text-sm font-medium text-gray-500">Title</h4>
+                                                <p className="mt-1 text-base">{viewingQuiz.title}</p>
+                                            </div>
+
+                                            <div>
+                                                <h4 className="text-sm font-medium text-gray-500">Topic</h4>
+                                                <p className="mt-1 text-base whitespace-pre-line">{viewingQuiz.topic}</p>
+                                            </div>
+
+                                            <div>
+                                                <h4 className="text-sm font-medium text-gray-500">Questions</h4>
+                                                <p className="mt-1 text-base">{viewingQuiz.questions?.length || 0} questions</p>
+                                            </div>
+
+                                            <div>
+                                                <h4 className="text-sm font-medium text-gray-500">Question Type</h4>
+                                                <p className="mt-1 text-base">{viewingQuiz.questionType}</p>
+                                            </div>
+
+                                            <div>
+                                                <h4 className="text-sm font-medium text-gray-500">Difficulty</h4>
+                                                <p className="mt-1 text-base">{viewingQuiz.difficulty}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                                <button
+                                    type="button"
+                                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+                                    onClick={closeQuizModal}
                                 >
                                     Close
                                 </button>

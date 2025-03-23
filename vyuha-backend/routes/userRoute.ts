@@ -14,6 +14,7 @@ import {
     getCourseController, getSubmissionsController,
     setSubmissionController
 } from "../controllers/courseController";
+import {getQuizSubmissionsByCourse, getQuizzesByCourse} from "../controllers/quizController";
 userRouter.get("/getProfile",authMiddleware, getUserController);
 // @ts-ignore
 userRouter.post("/update",authMiddleware,upload, updateUserPhotoController);
@@ -29,4 +30,6 @@ userRouter.post("/submitAssignment",authMiddleware,upload,setSubmissionControlle
 userRouter.get("/submissions", authMiddleware, getSubmissionsController);
 userRouter.post("/submitSubmission",authMiddleware,submitFeedbackController);
 userRouter.get("/getUserFeedback/:userId", authMiddleware, getUserFeedbackController);
+userRouter.get("/getQuizes",authMiddleware,getQuizzesByCourse);
+userRouter.get("/quizSubmissions/:courseId", authMiddleware, getQuizSubmissionsByCourse);
 export default userRouter;

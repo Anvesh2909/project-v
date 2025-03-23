@@ -1,29 +1,30 @@
 "use client";
-import React, { useState, useContext, useEffect, useMemo } from 'react';
+import React, {useContext, useEffect, useMemo, useState} from 'react';
 import {
-    Clock,
-    Calendar,
-    Users,
-    PlayCircle,
-    FileText,
-    Download,
-    X,
-    Verified,
-    Lock,
-    Upload,
-    File,
+    Book,
     BookOpen,
+    Calendar,
+    Clock,
+    Download,
+    File,
     FileCode,
-    Video,
+    FileText,
     Image,
-    Book
+    Lock,
+    PlayCircle,
+    Upload,
+    Users,
+    Verified,
+    Video,
+    X
 } from 'lucide-react';
-import VideoPlayer from "@/components/VideoPlayer";
-import { AppContext, Chapter, Lecture } from "@/context/AppContext";
-import { useParams } from 'next/navigation';
+import VideoPlayer from "@/components/student/VideoPlayer";
+import {AppContext, Lecture} from "@/context/AppContext";
+import {useParams} from 'next/navigation';
 import axios from "axios";
-import { useNotification } from '@/context/NotificationContext';
+import {useNotification} from '@/context/NotificationContext';
 import Link from "next/link";
+
 const resourceUtils = {
     getIcon: (type: string) => {
         const icons = {
@@ -37,73 +38,94 @@ const resourceUtils = {
     }
 };
 
-const AssignmentCard = ({ assignment, uploading, selectedFile, handleFileChange, handleSubmission, submission }: any) => (
-    <div className="flex items-center justify-between p-4 bg-white/70 rounded-xl hover:bg-white/90 transition-all duration-200 border border-[#E2E8F0]/80 shadow-sm">
-        <div className="flex items-center space-x-3.5 flex-1 min-w-0">
-            <div className="p-2 bg-[#F0FDF4] rounded-lg shadow-sm">
-                <FileText size={16} className="text-[#10B981] shrink-0" />
-            </div>
-            <div className="truncate">
-                <p className="text-sm font-semibold text-[#1E293B] truncate">{assignment.title}</p>
-                <p className="text-xs text-[#64748B] tracking-wide">ASSIGNMENT</p>
-                {submission && (
-                    <div className="mt-1.5">
-                        {submission.grade !== null ? (
-                            <div className="flex flex-col space-y-1.5">
-                                <span className="text-xs bg-blue-100 text-blue-700 px-2.5 py-0.5 rounded-full inline-block w-fit font-medium">
-                                    Grade: {submission.grade}
-                                </span>
-                                {submission.feedback && (
-                                    <span className="text-xs text-gray-600 italic">
-                                        "{submission.feedback}"
+
+const AssignmentCard = ({ assignment, uploading, selectedFiles, handleFileChange, handleSubmission, submission }: any) => {
+    // Check if due date has passed
+    const dueDatePassed = assignment.dueDate ? new Date() > new Date(assignment.dueDate) : false;
+
+    return (
+        <div className="flex items-center justify-between p-4 bg-white/70 rounded-xl hover:bg-white/90 transition-all duration-200 border border-[#E2E8F0]/80 shadow-sm">
+            <div className="flex items-center space-x-3.5 flex-1 min-w-0">
+                <div className="p-2 bg-[#F0FDF4] rounded-lg shadow-sm">
+                    <FileText size={16} className="text-[#10B981] shrink-0" />
+                </div>
+                <div className="truncate">
+                    <p className="text-sm font-semibold text-[#1E293B] truncate">{assignment.title}</p>
+                    <p className="text-xs text-[#64748B] tracking-wide">ASSIGNMENT</p>
+
+                    {/* Show due date info */}
+                    {assignment.dueDate && (
+                        <p className={`text-xs mt-1 ${dueDatePassed ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
+                            {dueDatePassed ? 'Due date passed: ' : 'Due: '}
+                            {new Date(assignment.dueDate).toLocaleDateString()}
+                        </p>
+                    )}
+
+                    {submission && (
+                        <div className="mt-1.5">
+                            {submission.grade !== null ? (
+                                <div className="flex flex-col space-y-1.5">
+                                    <span className="text-xs bg-blue-100 text-blue-700 px-2.5 py-0.5 rounded-full inline-block w-fit font-medium">
+                                        Grade: {submission.grade}
                                     </span>
-                                )}
-                            </div>
-                        ) : (
-                            <span className="text-xs bg-yellow-100 text-yellow-700 px-2.5 py-0.5 rounded-full inline-block w-fit font-medium">
-                                Submitted - Awaiting grade
-                            </span>
+                                    {submission.feedback && (
+                                        <span className="text-xs text-gray-600 italic">
+                                            "{submission.feedback}"
+                                        </span>
+                                    )}
+                                </div>
+                            ) : (
+                                <span className="text-xs bg-yellow-100 text-yellow-700 px-2.5 py-0.5 rounded-full inline-block w-fit font-medium">
+                                    Submitted - Awaiting grade
+                                </span>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+            <div className="ml-2 flex items-center space-x-2">
+                {/* Only show submission controls if not submitted and due date hasn't passed */}
+                {!submission && !dueDatePassed && (
+                    <>
+                        <label className="bg-[#F0FDF4] p-2.5 rounded-lg hover:bg-[#DCFCE7] transition-all duration-200 cursor-pointer shadow-sm">
+                            <Upload size={16} className="text-[#10B981]" />
+                            <input type="file" className="hidden" onChange={(e) => handleFileChange(e, assignment.id)} />
+                        </label>
+                        {selectedFiles[assignment.id] && (
+                            <button
+                                onClick={() => handleSubmission(assignment.id)}
+                                disabled={uploading === assignment.id}
+                                className="ml-2 bg-gradient-to-r from-[#10B981] to-[#059669] text-white p-2.5 rounded-lg flex items-center justify-center shadow-sm hover:shadow-md transition-all duration-200"
+                            >
+                                {uploading === assignment.id ? (
+                                    <LoadingIndicator text="" size="small" />
+                                ) : "Submit"}
+                            </button>
                         )}
-                    </div>
+                    </>
+                )}
+
+                {/* Show due date passed message if no submission */}
+                {!submission && dueDatePassed && (
+                    <span className="text-xs bg-red-100 text-red-700 px-2.5 py-1 rounded-full inline-block font-medium">
+                        Submission closed
+                    </span>
+                )}
+
+                {submission && submission.submissionUrl && (
+                    <a
+                        href={submission.submissionUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-[#EFF6FF] p-2.5 rounded-lg hover:bg-[#DBEAFE] transition-all duration-200 shadow-sm"
+                    >
+                        <Download size={16} className="text-[#2563EB]" />
+                    </a>
                 )}
             </div>
         </div>
-        <div className="ml-2 flex items-center space-x-2">
-            {!submission && (
-                <>
-                    <label className="bg-[#F0FDF4] p-2.5 rounded-lg hover:bg-[#DCFCE7] transition-all duration-200 cursor-pointer shadow-sm">
-                        <Upload size={16} className="text-[#10B981]" />
-                        <input type="file" className="hidden" onChange={(e) => handleFileChange(e, assignment.id)} />
-                    </label>
-                    {selectedFiles[assignment.id] && (
-                        <button
-                            onClick={() => handleSubmission(assignment.id)}
-                            disabled={uploading === assignment.id}
-                            className="ml-2 bg-gradient-to-r from-[#10B981] to-[#059669] text-white p-2.5 rounded-lg flex items-center justify-center shadow-sm hover:shadow-md transition-all duration-200"
-                        >
-                            {uploading === assignment.id ? (
-                                <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                            ) : "Submit"}
-                        </button>
-                    )}
-                </>
-            )}
-            {submission && submission.submissionUrl && (
-                <a
-                    href={submission.submissionUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="bg-[#EFF6FF] p-2.5 rounded-lg hover:bg-[#DBEAFE] transition-all duration-200 shadow-sm"
-                >
-                    <Download size={16} className="text-[#2563EB]" />
-                </a>
-            )}
-        </div>
-    </div>
-);
+    );
+};
 const LessonItem = ({ lesson, onClick }: any) => (
     <div
         className="flex items-center justify-between p-3.5 bg-white/70 rounded-xl hover:bg-white/90 cursor-pointer transition-all duration-200 border border-[#E2E8F0]/80 shadow-sm hover:shadow-md group"
@@ -128,7 +150,22 @@ const LessonItem = ({ lesson, onClick }: any) => (
         </div>
     </div>
 );
+const LoadingIndicator = ({ text = "Loading...", size = "small" }: { text?: string, size?: "small" | "medium" | "large" }) => {
+    const dotSize = size === "large" ? "h-3 w-3" : size === "medium" ? "h-2 w-2" : "h-1.5 w-1.5";
+    const spacing = size === "large" ? "space-x-2" : "space-x-1.5";
+    const textSize = size === "large" ? "text-sm" : "text-xs";
 
+    return (
+        <div className="flex flex-col items-center">
+            <div className={`flex ${spacing} mb-2`}>
+                <div className={`${dotSize} bg-blue-400 rounded-full animate-bounce`} style={{ animationDelay: '0ms' }}></div>
+                <div className={`${dotSize} bg-blue-500 rounded-full animate-bounce`} style={{ animationDelay: '150ms' }}></div>
+                <div className={`${dotSize} bg-blue-600 rounded-full animate-bounce`} style={{ animationDelay: '300ms' }}></div>
+            </div>
+            {text && <p className={`${textSize} text-blue-800 font-medium`}>{text}</p>}
+        </div>
+    );
+};
 const VideoModal = ({ isOpen, lesson, onClose }: any) => {
     if (!isOpen || !lesson) return null;
 
@@ -169,38 +206,52 @@ const CourseDetailsPage = () => {
     const [submissions, setSubmissions] = useState<Record<string, any>>({});
     const [assignments, setAssignments] = useState<any[]>([]);
     const [localIsEnrolled, setLocalIsEnrolled] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [loadingResources, setLoadingResources] = useState(false);
     const studentId = data?.id;
     const courseDetails = courses?.find(course => course.id === courseId);
+    useEffect(() => {
+        if (token) {
+            setIsLoading(true);
+            fetchCourses?.().finally(() => {
+                setIsLoading(false);
+            });
+        }
+    }, [token, fetchCourses]);
     const enrollmentStatus = useMemo(() => {
-        const fromEnrollments = enrollments?.some(e => e.studentId === studentId && e.courseId === courseId) || false;
+        // First check enrollments from global context
+        const fromEnrollments = enrollments?.some(e =>
+            e.studentId === studentId && e.courseId === courseId
+        ) || false;
+
+        // Then check if this course is in student's enrolled courses
+        const inStudentCourses = data?.courses?.some(c => c.id === courseId) || false;
+
+        // Check direct enrollment record
         const enrollment = data?.courses?.find(c => c.id === courseId)?.enrollments?.find(e => e.studentId === data?.id);
+
         return {
-            isEnrolled: fromEnrollments || localIsEnrolled,
+            isEnrolled: fromEnrollments || inStudentCourses || localIsEnrolled,
             progress: enrollment?.progress || 0,
-            status:  'IN_PROGRESS'
+            status: enrollment?.status || 'IN_PROGRESS'
         };
     }, [enrollments, data?.courses, courseId, studentId, data?.id, localIsEnrolled]);
-    const allAssignmentsGraded = useMemo(() => {
-        if (assignments.length === 0) return false;
-        return assignments.every(assignment =>
-            submissions[assignment.id] !== undefined &&
-            submissions[assignment.id]?.grade !== null
-        );
-    }, [assignments, submissions]);
-
-// Now create a displayProgress value that shows 100% when all assignments are graded
     const displayProgress = useMemo(() => {
-        return allAssignmentsGraded ? 100 : enrollmentStatus.progress;
-    }, [allAssignmentsGraded, enrollmentStatus.progress]);
+        if (assignments.length === 0) return 0;
+
+        // Only count assignments that have been submitted (have a submissionUrl)
+        const completedCount = assignments.reduce((count, assignment) => {
+            // Check if the assignment has been submitted
+            const isSubmitted = !!submissions[assignment.id]?.submissionUrl;
+            return count + (isSubmitted ? 1 : 0);
+        }, 0);
+
+        // Calculate percentage: (submitted / total) * 100
+        return Math.round((completedCount / assignments.length) * 100);
+    }, [assignments, submissions]);
     // Always call this useMemo hook
     const chapters = useMemo(() => courseDetails?.courseContent || [], [courseDetails]);
 
-    useEffect(() => {
-        if (token) {
-            fetchCourses?.();
-        }
-    }, [token, fetchCourses]);
 
     useEffect(() => {
         if (token && backendUrl && courseId) {
@@ -225,7 +276,6 @@ const CourseDetailsPage = () => {
                 })
             ]);
 
-            // Process both results at once
             const submissionsMap = submissionsData.data.reduce((acc: Record<string, any>, submission: any) => {
                 acc[submission.assignmentId] = {
                     ...submission,
@@ -234,7 +284,6 @@ const CourseDetailsPage = () => {
                 return acc;
             }, {});
 
-            // Update both states at once (in a single render cycle)
             setAssignments(assignmentsData.data);
             setSubmissions(submissionsMap);
 
@@ -262,7 +311,6 @@ const CourseDetailsPage = () => {
             window.open(lesson.resourceUrl, '_blank');
         }
     };
-
     const handleEnrollment = async () => {
         if (!token || !backendUrl || isEnrolling) return;
         try {
@@ -296,6 +344,14 @@ const CourseDetailsPage = () => {
 
     const handleSubmission = async (assignmentId: string) => {
         if (!selectedFiles[assignmentId] || !token || !backendUrl) return;
+
+        // Get the assignment and check due date
+        const assignment = assignments.find(a => a.id === assignmentId);
+        if (assignment && assignment.dueDate && new Date() > new Date(assignment.dueDate)) {
+            showNotification("Submission due date has passed", "error");
+            return;
+        }
+
         setUploading(assignmentId);
         try {
             const formData = new FormData();
@@ -303,7 +359,7 @@ const CourseDetailsPage = () => {
             formData.append('assignmentId', assignmentId);
             formData.append('studentId', data?.id ?? '');
 
-            await axios.post(`${backendUrl}/api/submitAssignment`, formData, {
+            const response = await axios.post(`${backendUrl}/api/submitAssignment`, formData, {
                 headers: { token, 'Content-Type': 'multipart/form-data' }
             });
 
@@ -314,11 +370,24 @@ const CourseDetailsPage = () => {
                 return newState;
             });
 
+            // Update local submission state
+            setSubmissions(prev => ({
+                ...prev,
+                [assignmentId]: {
+                    assignmentId,
+                    studentId: data?.id,
+                    submissionUrl: response.data.submissionUrl || '',
+                    grade: null,
+                    feedback: null,
+                    graded: false
+                }
+            }));
+
             showNotification("Assignment submitted successfully", "success");
-            fetchAssignmentsAndSubmissions();
-        } catch (error) {
+            await fetchAssignmentsAndSubmissions();
+        } catch (error: any) {
             console.error("Error submitting assignment:", error);
-            showNotification("Failed to submit assignment", "error");
+            showNotification(error.response?.data?.message || "Failed to submit assignment", "error");
         } finally {
             setUploading(null);
         }
@@ -344,12 +413,7 @@ const CourseDetailsPage = () => {
             <div className="p-4 md:p-8 max-w-6xl mx-auto bg-gradient-to-br from-blue-50/40 to-indigo-50/40 min-h-screen flex items-center justify-center">
                 <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-md border border-white/30 w-full max-w-md">
                     <div className="flex flex-col items-center">
-                        <div className="flex space-x-2 mb-4">
-                            <div className="w-3 h-3 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                            <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                            <div className="w-3 h-3 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                        </div>
-                        <p className="text-blue-800 font-medium">Loading course content...</p>
+                        <LoadingIndicator text="Loading course content..." size="large" />
                     </div>
                 </div>
             </div>
@@ -371,7 +435,6 @@ const CourseDetailsPage = () => {
             </div>
         );
     }
-
     return (
         <div className="p-4 md:p-8 max-w-6xl mx-auto bg-gradient-to-br from-blue-50/40 to-indigo-50/40 min-h-screen">
             <div className="flex flex-col lg:flex-row gap-6 mb-8">
@@ -485,10 +548,12 @@ const CourseDetailsPage = () => {
 
                         {/* Assignments */}
                         <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/30 shadow-md flex-grow">
-                            <h2 className="text-lg font-bold mb-4 text-[#1E293B] flex items-center">
-                                <FileText size={20} className="text-[#10B981] mr-2.5" />
-                                Assignments
-                                {loadingResources && <span className="ml-2 text-xs text-blue-500">(Loading...)</span>}
+                            <h2 className="text-lg font-bold mb-4 text-[#1E293B] flex items-center justify-between">
+                                <div className="flex items-center">
+                                    <FileText size={20} className="text-[#10B981] mr-2.5" />
+                                    Assignments
+                                </div>
+                                {loadingResources && <LoadingIndicator text="" size="small" />}
                             </h2>
                             <div className="space-y-3.5 overflow-y-auto pr-1.5" style={{ maxHeight: 'calc(100% - 56px)' }}>
                                 {assignments.length > 0 ? (
@@ -497,7 +562,7 @@ const CourseDetailsPage = () => {
                                             key={index}
                                             assignment={assignment}
                                             uploading={uploading}
-                                            selectedFile={selectedFile}
+                                            selectedFiles={selectedFiles}
                                             handleFileChange={handleFileChange}
                                             handleSubmission={handleSubmission}
                                             submission={submissions[assignment.id]}
@@ -512,6 +577,7 @@ const CourseDetailsPage = () => {
                                 )}
                             </div>
                         </div>
+
                     </div>
                 )}
             </div>
@@ -567,13 +633,9 @@ const CourseDetailsPage = () => {
                                 disabled={isEnrolling}
                             >
                                 {isEnrolling ? (
-                                    <span className="flex items-center justify-center">
-            <svg className="animate-spin h-5 w-5 mr-3 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            Enrolling...
-        </span>
+                                    <div className="flex items-center justify-center">
+                                        <LoadingIndicator text="Enrolling..." size="small" />
+                                    </div>
                                 ) : (
                                     "Enroll Now"
                                 )}
@@ -582,7 +644,6 @@ const CourseDetailsPage = () => {
                     </div>
                 )}
             </div>
-
             <VideoModal isOpen={videoModal} lesson={activeLesson} onClose={() => setVideoModal(false)} />
 
             <style jsx global>{`

@@ -15,6 +15,12 @@ import {
     setGradeController
 } from "../controllers/courseController";
 import upload from "../config/multerConfig";
+import {
+    createQuiz,
+    getQuiz,
+    getStudentQuizAttempts,
+    getPerformanceReport, getQuizzesByCourse
+} from "../controllers/quizController";
 const instructorRoute = express.Router();
 instructorRoute.get("/getInstructorProfile", authMiddleware, getInstructorController);
 instructorRoute.post("/createCourse",authMiddleware,upload,createCourseController);
@@ -28,4 +34,9 @@ instructorRoute.post("/setAssignment",authMiddleware,setAssignmentController);
 instructorRoute.get("/getCourseAssignments/:id", authMiddleware, getAssignmentsController);
 instructorRoute.get("/getInstructorSubmissions",authMiddleware,getInstructorSubmissionsController);
 instructorRoute.put("/setGrade",authMiddleware,setGradeController);
+instructorRoute.post("/createQuiz",authMiddleware, createQuiz);
+instructorRoute.get("/quiz/:quizId", authMiddleware, getQuiz);
+instructorRoute.get("/quizAttempts", authMiddleware, getStudentQuizAttempts);
+instructorRoute.get("/performanceReport/:attemptId", authMiddleware, getPerformanceReport);
+instructorRoute.get("/quiz/course/:courseId", authMiddleware, getQuizzesByCourse);
 export default instructorRoute;

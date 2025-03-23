@@ -23,6 +23,7 @@ interface Enrollment {
     studentId: string;
     courseId: string;
     progress: number;
+    status: string;
 }
 
 export interface Chapter {
