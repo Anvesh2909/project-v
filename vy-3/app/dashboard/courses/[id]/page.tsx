@@ -73,9 +73,9 @@ const AssignmentCard = ({ assignment, uploading, selectedFile, handleFileChange,
                 <>
                     <label className="bg-[#F0FDF4] p-2.5 rounded-lg hover:bg-[#DCFCE7] transition-all duration-200 cursor-pointer shadow-sm">
                         <Upload size={16} className="text-[#10B981]" />
-                        <input type="file" className="hidden" onChange={handleFileChange} />
+                        <input type="file" className="hidden" onChange={(e) => handleFileChange(e, assignment.id)} />
                     </label>
-                    {selectedFile && (
+                    {selectedFiles[assignment.id] && (
                         <button
                             onClick={() => handleSubmission(assignment.id)}
                             disabled={uploading === assignment.id}
@@ -165,7 +165,7 @@ const CourseDetailsPage = () => {
     const [activeLesson, setActiveLesson] = useState<Lecture | null>(null);
     const [isEnrolling, setIsEnrolling] = useState(false);
     const [uploading, setUploading] = useState<string | null>(null);
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [selectedFiles, setSelectedFiles] = useState<Record<string, File>>({});
     const [submissions, setSubmissions] = useState<Record<string, any>>({});
     const [assignments, setAssignments] = useState<any[]>([]);
     const [localIsEnrolled, setLocalIsEnrolled] = useState(false);
@@ -285,16 +285,21 @@ const CourseDetailsPage = () => {
         }
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files?.[0]) setSelectedFile(e.target.files[0]);
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, assignmentId: string) => {
+        if (e.target.files?.[0]) {
+            setSelectedFiles(prev => ({
+                ...prev,
+                [assignmentId]: e.target.files![0]
+            }));
+        }
     };
 
     const handleSubmission = async (assignmentId: string) => {
-        if (!selectedFile || !token || !backendUrl) return;
+        if (!selectedFiles[assignmentId] || !token || !backendUrl) return;
         setUploading(assignmentId);
         try {
             const formData = new FormData();
-            formData.append('file', selectedFile);
+            formData.append('file', selectedFiles[assignmentId]);
             formData.append('assignmentId', assignmentId);
             formData.append('studentId', data?.id ?? '');
 
@@ -302,7 +307,13 @@ const CourseDetailsPage = () => {
                 headers: { token, 'Content-Type': 'multipart/form-data' }
             });
 
-            setSelectedFile(null);
+            // Clear only this assignment's file
+            setSelectedFiles(prev => {
+                const newState = {...prev};
+                delete newState[assignmentId];
+                return newState;
+            });
+
             showNotification("Assignment submitted successfully", "success");
             fetchAssignmentsAndSubmissions();
         } catch (error) {
