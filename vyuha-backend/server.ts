@@ -10,14 +10,13 @@ const app = express();
 const corsOptions = {
     origin: [
         'https://project-v-seven.vercel.app',
-        'http://localhost:3000' // For local development
+        'http://localhost:3000'
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'token']
 };
 app.use(cors(corsOptions));
 app.use(express.json());
-app.use(cors());
 app.use(express.urlencoded({ extended: true }));
 app.use("/auth", authRoute);
 app.use("/api",userRouter);
