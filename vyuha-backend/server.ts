@@ -7,6 +7,15 @@ import adminRoute from "./routes/adminRoute";
 import mentorRoute from "./routes/mentorRoute";
 const port = process.env.PORT || 9000;
 const app = express();
+const corsOptions = {
+    origin: [
+        'https://project-v-seven.vercel.app',
+        'http://localhost:3000' // For local development
+    ],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'token']
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cors());
 app.use(express.urlencoded({ extended: true }));
