@@ -1,9 +1,10 @@
-import {createContext, ReactNode, useState, useEffect, useCallback} from "react";
+import { createContext, ReactNode, useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
 import { jwtDecode } from "jwt-decode";
 
+// Interfaces remain the same
 export interface Course {
     id: string;
     title: string;
@@ -158,29 +159,24 @@ const AppContextProvider = (props: AppContextProviderProps) => {
     const [submissions, setSubmissions] = useState<Record<string, Submission>>({});
     const [quizzes, setQuizzes] = useState<Record<string, Quiz[]>>({});
     const [quizSubmissions, setQuizSubmissions] = useState<Record<string, QuizSubmission>>({});
-    const REFRESH_INTERVAL = 5 * 60 * 1000;
+    const [isInitialized, setIsInitialized] = useState(false);
+    const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
-    // Initialize token from localStorage
-    useEffect(() => {
-        const storedToken = localStorage.getItem('token');
-        if (storedToken) {
-            setToken(storedToken);
-            setIsAuthenticated(true);
-            Cookies.set('token', storedToken, { expires: 7 });
-        }
-    }, []);
-
-    // Memoize token expiration check to avoid recreating on each render
-    const isTokenExpired = useCallback((token: string) => {
+    // Memoized token expiration check to prevent re-renders
+    const isTokenExpired = useCallback((tokenToCheck: string) => {
         try {
-            const decoded: any = jwtDecode(token);
-            return decoded.exp * 1000 < Date.now();
-        } catch (e) {
+            const decoded: any = jwtDecode(tokenToCheck);
+            if (decoded.exp * 1000 < Date.now()) {
+                return true;
+            }
+            return false;
+        } catch {
+            // If token can't be decoded, treat as expired
             return true;
         }
     }, []);
 
-    // Memoize logout function
+    // Memoized logout function to prevent dependency cycles
     const logout = useCallback(() => {
         setToken('');
         setIsAuthenticated(false);
@@ -190,232 +186,276 @@ const AppContextProvider = (props: AppContextProviderProps) => {
         window.location.replace('/sign-in');
     }, []);
 
-    // Memoize data fetching functions to prevent recreation on each render
-    const getData = useCallback(async (currentToken: string = token): Promise<User | null> => {
-        if (!currentToken || isTokenExpired(currentToken)) return null;
+    // API request with auth header - memoized to prevent re-renders
+    const authRequest = useCallback(async (method: 'get' | 'post', url: string, reqData?: any, headers?: any) => {
+        const currentToken = token;
+        if (!currentToken || isTokenExpired(currentToken)) {
+            if (method === 'get') return null;
+            throw new Error("Unauthorized");
+        }
 
         try {
-            const response = await axios.get(`${backendUrl}/api/getProfile`, {
-                headers: { token: currentToken }
-            });
-            setData(response.data);
-            return response.data;
-        } catch (e) {
-            console.error(e);
-            if (axios.isAxiosError(e)) {
+            const config = {
+                headers: {
+                    token: currentToken,
+                    ...headers
+                }
+            };
+
+            if (method === 'get') {
+                return await axios.get(`${backendUrl}${url}`, config);
+            } else {
+                return await axios.post(`${backendUrl}${url}`, reqData, config);
+            }
+        } catch (error) {
+            console.error(`Error in ${method} request to ${url}:`, error);
+            if (axios.isAxiosError(error) && (error.response?.status === 401 || error.response?.status === 403)) {
                 logout();
             }
-            return null;
+            throw error;
         }
     }, [backendUrl, token, isTokenExpired, logout]);
 
-    const fetchCourses = useCallback(async (currentToken: string = token) => {
-        if (!currentToken || isTokenExpired(currentToken)) return;
-
+    // Get user profile data - memoized to prevent re-renders
+    const getData = useCallback(async (): Promise<User | null> => {
         try {
-            const response = await axios.get(`${backendUrl}/api/getCourses`, {
-                headers: { token: currentToken }
-            });
-            setCourses(response.data);
+            const response = await authRequest('get', '/api/getProfile');
+            if (response) {
+                setData(response.data);
+                return response.data;
+            }
+            return null;
         } catch (e) {
-            console.error("Error fetching courses:", e);
+            console.error("Error fetching user data:", e);
+            return null;
         }
-    }, [backendUrl, token, isTokenExpired]);
+    }, [authRequest]);
 
-    const getEnrollments = useCallback(async (currentToken: string = token) => {
-        if (!currentToken || isTokenExpired(currentToken)) return;
-
-        try {
-            const response = await axios.get(`${backendUrl}/api/getEnrollments`, {
-                headers: { token: currentToken }
-            });
-            setData((prevData) => {
-                if (prevData) {
-                    return {
-                        ...prevData,
-                        courses: response.data
-                    };
-                }
-                return prevData;
-            });
-            setEnrollments(response.data);
-        } catch (e) {
-            console.error("Error fetching enrollments:", e);
-        }
-    }, [backendUrl, token, isTokenExpired]);
-
-    const fetchSubmissions = useCallback(async () => {
-        if (!token || isTokenExpired(token)) return;
-
-        try {
-            const response = await axios.get(`${backendUrl}/api/submissions`, {
-                headers: { token }
-            });
-
-            const submissionsMap = response.data.reduce((acc: Record<string, any>, submission: any) => {
-                acc[submission.assignmentId] = submission;
-                return acc;
-            }, {});
-
-            setSubmissions(submissionsMap);
-        } catch (e) {
-            console.error("Error fetching submissions:", e);
-        }
-    }, [backendUrl, token, isTokenExpired]);
-
-    const fetchAssignments = useCallback(async (courseId: string): Promise<Assignment[]> => {
-        if (!token || isTokenExpired(token)) return [];
-
-        try {
-            const response = await axios.get(`${backendUrl}/api/getAssignments/${courseId}`, {
-                headers: { token }
-            });
-
-            setAssignments(prev => ({
-                ...prev,
-                [courseId]: response.data
-            }));
-
-            return response.data;
-        } catch (e) {
-            console.error("Error fetching assignments:", e);
-            return [];
-        }
-    }, [backendUrl, token, isTokenExpired]);
-
-    const fetchQuizzes = useCallback(async (courseId: string): Promise<Quiz[]> => {
-        if (!token || isTokenExpired(token)) return [];
-
-        try {
-            const response = await axios.get(`${backendUrl}/api/getQuizzes/${courseId}`, {
-                headers: { token }
-            });
-            setQuizzes(prev => ({
-                ...prev,
-                [courseId]: response.data
-            }));
-
-            return response.data;
-        } catch (e) {
-            console.error("Error fetching quizzes:", e);
-            return [];
-        }
-    }, [backendUrl, token, isTokenExpired]);
-
-    // Optimize refreshCourses to use Promise.all for parallel requests
-    const refreshCourses = useCallback(async (): Promise<void> => {
-        await Promise.all([
-            fetchCourses(),
-            getEnrollments(),
-            fetchSubmissions()
-        ]);
-
-        if (data?.courses) {
-            const promises = data.courses.flatMap(course => [
-                fetchAssignments(course.id),
-                fetchQuizzes(course.id)
-            ]);
-            await Promise.all(promises);
-        }
-    }, [fetchCourses, getEnrollments, fetchSubmissions, fetchAssignments, fetchQuizzes, data?.courses]);
-
-    // Token-handling functions
+    // Set token handler - memoized to prevent re-renders
     const handleSetToken = useCallback((newToken: string) => {
         setToken(newToken);
         setIsAuthenticated(true);
         localStorage.setItem('token', newToken);
-        Cookies.set('token', newToken, { expires: 3 / 24 });
-        getData(newToken);
+        Cookies.set('token', newToken, { expires: 3 / 24 }); // 3 hours
+        setIsInitialized(false); // Force reinitialization
         router.push('/dashboard');
-    }, [getData, router]);
+    }, [router]);
 
+    // Fetch courses - memoized to prevent re-renders
+    const fetchCourses = useCallback(async () => {
+        try {
+            const response = await authRequest('get', '/api/getCourses');
+            if (response) setCourses(response.data);
+        } catch (e) {
+            console.error("Error fetching courses:", e);
+        }
+    }, [authRequest]);
+
+    // Get enrollments - memoized to prevent re-renders
+    const getEnrollments = useCallback(async () => {
+        try {
+            const response = await authRequest('get', '/api/getEnrollments');
+            if (response) {
+                setData((prevData) => {
+                    if (prevData) {
+                        return {
+                            ...prevData,
+                            courses: response.data
+                        };
+                    }
+                    return prevData;
+                });
+                setEnrollments(response.data);
+            }
+        } catch (e) {
+            console.error("Error fetching enrollments:", e);
+        }
+    }, [authRequest]);
+
+    // Fetch assignments for a course - memoized to prevent re-renders
+    const fetchAssignments = useCallback(async (courseId: string): Promise<Assignment[]> => {
+        try {
+            const response = await authRequest('get', `/api/getAssignments/${courseId}`);
+            if (response) {
+                setAssignments(prev => ({
+                    ...prev,
+                    [courseId]: response.data
+                }));
+                return response.data;
+            }
+            return [];
+        } catch (e) {
+            console.error("Error fetching assignments:", e);
+            return [];
+        }
+    }, [authRequest]);
+
+    // Fetch submissions - memoized to prevent re-renders
+    const fetchSubmissions = useCallback(async () => {
+        try {
+            const response = await authRequest('get', '/api/submissions');
+            if (response) {
+                // Convert array to record keyed by assignmentId for easier lookup
+                const submissionsMap = response.data.reduce((acc: Record<string, any>, submission: any) => {
+                    acc[submission.assignmentId] = submission;
+                    return acc;
+                }, {});
+                setSubmissions(submissionsMap);
+            }
+        } catch (e) {
+            console.error("Error fetching submissions:", e);
+        }
+    }, [authRequest]);
+
+    // Submit assignment - memoized to prevent re-renders
     const submitAssignment = useCallback(async (assignmentId: string, file: File): Promise<Submission> => {
-        if (!token || isTokenExpired(token)) throw new Error("Unauthorized");
-
         const formData = new FormData();
         formData.append('file', file);
         formData.append('assignmentId', assignmentId);
         formData.append('studentId', data?.id ?? '');
 
         try {
-            const response = await axios.post(
-                `${backendUrl}/api/submitAssignment`,
+            const response = await authRequest(
+                'post',
+                '/api/submitAssignment',
                 formData,
-                { headers: { token, 'Content-Type': 'multipart/form-data' } }
+                { 'Content-Type': 'multipart/form-data' }
             );
-            const newSubmission = response.data;
-            setSubmissions(prev => ({
-                ...prev,
-                [assignmentId]: newSubmission
-            }));
 
-            return newSubmission;
+            if (response) {
+                const newSubmission = response.data;
+                setSubmissions(prev => ({
+                    ...prev,
+                    [assignmentId]: newSubmission
+                }));
+                return newSubmission;
+            }
+            throw new Error("Failed to submit assignment");
         } catch (error) {
             console.error("Error submitting assignment:", error);
             throw error;
         }
-    }, [backendUrl, token, isTokenExpired, data?.id]);
+    }, [authRequest, data?.id]);
 
-    const submitQuiz = useCallback(async (quizId: string, answers: Record<string, string>): Promise<QuizSubmission> => {
-        if (!token || isTokenExpired(token)) throw new Error("Unauthorized");
-
+    // Fetch quizzes - memoized to prevent re-renders
+    const fetchQuizzes = useCallback(async (courseId: string): Promise<Quiz[]> => {
         try {
-            const response = await axios.post(
-                `${backendUrl}/api/submitQuiz`,
+            const response = await authRequest('get', `/api/getQuizzes/${courseId}`);
+            if (response) {
+                setQuizzes(prev => ({
+                    ...prev,
+                    [courseId]: response.data
+                }));
+                return response.data;
+            }
+            return [];
+        } catch (e) {
+            console.error("Error fetching quizzes:", e);
+            return [];
+        }
+    }, [authRequest]);
+
+    // Submit quiz - memoized to prevent re-renders
+    const submitQuiz = useCallback(async (quizId: string, answers: Record<string, string>): Promise<QuizSubmission> => {
+        try {
+            const response = await authRequest(
+                'post',
+                '/api/submitQuiz',
                 {
                     quizId,
                     studentId: data?.id,
                     answers
-                },
-                { headers: { token } }
+                }
             );
 
-            const submission = response.data;
-            setQuizSubmissions(prev => ({
-                ...prev,
-                [quizId]: submission
-            }));
-
-            return submission;
+            if (response) {
+                const submission = response.data;
+                setQuizSubmissions(prev => ({
+                    ...prev,
+                    [quizId]: submission
+                }));
+                return submission;
+            }
+            throw new Error("Failed to submit quiz");
         } catch (error) {
             console.error("Error submitting quiz:", error);
             throw error;
         }
-    }, [backendUrl, token, isTokenExpired, data?.id]);
+    }, [authRequest, data?.id]);
 
+    // Refresh user data - memoized to prevent re-renders
     const refreshData = useCallback(async (): Promise<User | null> => {
         return await getData();
     }, [getData]);
 
-    // Main effect for data fetching based on token
-    useEffect(() => {
-        if (!token) return;
+    // Refresh all course-related data - memoized to prevent re-renders
+    const refreshCourses = useCallback(async (): Promise<void> => {
+        await fetchCourses();
+        await getEnrollments();
+        await fetchSubmissions();
 
-        // Initial data fetch
-        const initialFetch = async () => {
-            await getData();
-            await Promise.all([
-                fetchCourses(),
-                getEnrollments(),
-                fetchSubmissions()
+        if (data?.courses) {
+            const promises = data.courses.flatMap(course => [
+                fetchAssignments(course.id),
+                fetchQuizzes(course.id)
             ]);
-        };
-        initialFetch();
+            await Promise.allSettled(promises);
+        }
+    }, [fetchCourses, getEnrollments, fetchSubmissions, data?.courses, fetchAssignments, fetchQuizzes]);
 
-        // Set up refresh intervals
-        const profileIntervalId = setInterval(() => {
-            getData();
-        }, REFRESH_INTERVAL);
+    // Load stored token on mount (once)
+    useEffect(() => {
+        const storedToken = localStorage.getItem('token');
+        if (storedToken && !isTokenExpired(storedToken)) {
+            setToken(storedToken);
+            setIsAuthenticated(true);
+            Cookies.set('token', storedToken, { expires: 7 });
+        } else if (storedToken) {
+            // Token exists but is expired
+            logout();
+        }
+    }, [isTokenExpired, logout]);
 
-        const resourcesIntervalId = setInterval(() => {
-            refreshCourses();
-        }, REFRESH_INTERVAL * 2);
+    // Initialize data fetch after token is set
+    useEffect(() => {
+        if (token && !isInitialized) {
+            // Flag to prevent multiple initializations
+            setIsInitialized(true);
 
-        return () => {
-            clearInterval(profileIntervalId);
-            clearInterval(resourcesIntervalId);
-        };
-    }, [token, getData, fetchCourses, getEnrollments, fetchSubmissions, refreshCourses]);
+            // Initial data load
+            (async () => {
+                try {
+                    // Sequential loading for initial data
+                    await getData();
+                    await fetchCourses();
+                    await getEnrollments();
+                    await fetchSubmissions();
+                } catch (error) {
+                    console.error("Error during initialization:", error);
+                }
+            })();
+        }
+    }, [token, isInitialized, getData, fetchCourses, getEnrollments, fetchSubmissions]);
+
+    // Set up refresh intervals only after initialization
+    useEffect(() => {
+        if (token && isInitialized) {
+            // Set up interval timers for refreshing data
+            const profileIntervalId = setInterval(() => {
+                getData().catch(console.error);
+            }, REFRESH_INTERVAL);
+
+            const resourcesIntervalId = setInterval(() => {
+                refreshCourses().catch(console.error);
+            }, REFRESH_INTERVAL * 2);
+
+            // Cleanup on unmount or when dependencies change
+            return () => {
+                clearInterval(profileIntervalId);
+                clearInterval(resourcesIntervalId);
+            };
+        }
+    }, [token, isInitialized, getData, refreshCourses]);
 
     const value = {
         backendUrl,
@@ -448,4 +488,5 @@ const AppContextProvider = (props: AppContextProviderProps) => {
         </AppContext.Provider>
     );
 };
+
 export default AppContextProvider;
