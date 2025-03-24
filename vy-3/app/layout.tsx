@@ -5,7 +5,8 @@ import AppProviders from "@/app/AppProvider";
 import AdminProviders from "@/app/AdminProvider";
 import InstructorProviders from "@/app/InstructorProvider";
 import MentorProviders from "@/app/MentorProvider";
-import { Analytics } from "@vercel/analytics/react"
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next"
 export const metadata: Metadata = {
     title: 'Lurnex',
     description: 'A NextGen LMS',
@@ -27,6 +28,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                         <AppProviders>
                             {children}
                             <Analytics />
+                            <SpeedInsights/>
                         </AppProviders>
                     </MentorProviders>
                 </InstructorProviders>

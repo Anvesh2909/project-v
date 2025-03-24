@@ -196,20 +196,40 @@ const VideoModal = ({ isOpen, lesson, onClose }: any) => {
 const CourseDetailsPage = () => {
     const params = useParams();
     const courseId = params.id as string;
-    const { data, token, backendUrl, fetchCourses, courses, enrollments } = useContext(AppContext) || {};
+    const {
+        data,
+        token,
+        backendUrl,
+        fetchCourses,
+        courses,
+        enrollments,
+        // Add the new context properties
+        assignments: contextAssignments,
+        submissions: contextSubmissions,
+        fetchAssignments,
+        submitAssignment
+    } = useContext(AppContext) || {};
+
     const { showNotification } = useNotification();
     const [videoModal, setVideoModal] = useState(false);
     const [activeLesson, setActiveLesson] = useState<Lecture | null>(null);
     const [isEnrolling, setIsEnrolling] = useState(false);
     const [uploading, setUploading] = useState<string | null>(null);
     const [selectedFiles, setSelectedFiles] = useState<Record<string, File>>({});
-    const [submissions, setSubmissions] = useState<Record<string, any>>({});
-    const [assignments, setAssignments] = useState<any[]>([]);
+    // Remove local state for assignments and submissions
     const [localIsEnrolled, setLocalIsEnrolled] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [loadingResources, setLoadingResources] = useState(false);
+
     const studentId = data?.id;
     const courseDetails = courses?.find(course => course.id === courseId);
+
+    // Get assignments for this course from context
+    const courseAssignments = useMemo(() =>
+            contextAssignments?.[courseId] || [],
+        [contextAssignments, courseId]
+    );
+
     useEffect(() => {
         if (token) {
             setIsLoading(true);
@@ -218,6 +238,19 @@ const CourseDetailsPage = () => {
             });
         }
     }, [token, fetchCourses]);
+
+    // Updated to use context methods
+    useEffect(() => {
+        if (token && courseId) {
+            setLoadingResources(true);
+            Promise.all([
+                fetchAssignments?.(courseId)
+            ]).finally(() => {
+                setLoadingResources(false);
+            });
+        }
+    }, [token, courseId, fetchAssignments]);
+
     const enrollmentStatus = useMemo(() => {
         // First check enrollments from global context
         const fromEnrollments = enrollments?.some(e =>
@@ -236,72 +269,21 @@ const CourseDetailsPage = () => {
             status: enrollment?.status || 'IN_PROGRESS'
         };
     }, [enrollments, data?.courses, courseId, studentId, data?.id, localIsEnrolled]);
-    const displayProgress = useMemo(() => {
-        if (assignments.length === 0) return 0;
 
-        // Only count assignments that have been submitted (have a submissionUrl)
-        const completedCount = assignments.reduce((count, assignment) => {
-            // Check if the assignment has been submitted
-            const isSubmitted = !!submissions[assignment.id]?.submissionUrl;
+    // Updated to use courseAssignments and contextSubmissions
+    const displayProgress = useMemo(() => {
+        if (courseAssignments.length === 0) return 0;
+
+        // Count assignments that have been submitted
+        const completedCount = courseAssignments.reduce((count, assignment) => {
+            const isSubmitted = !!contextSubmissions?.[assignment.id]?.submissionUrl;
             return count + (isSubmitted ? 1 : 0);
         }, 0);
 
-        // Calculate percentage: (submitted / total) * 100
-        return Math.round((completedCount / assignments.length) * 100);
-    }, [assignments, submissions]);
-    // Always call this useMemo hook
+        return Math.round((completedCount / courseAssignments.length) * 100);
+    }, [courseAssignments, contextSubmissions]);
+
     const chapters = useMemo(() => courseDetails?.courseContent || [], [courseDetails]);
-
-
-    useEffect(() => {
-        if (token && backendUrl && courseId) {
-            setLoadingResources(true);
-            fetchAssignmentsAndSubmissions();
-        }
-    }, [token, courseId, backendUrl]);
-
-    const fetchAssignmentsAndSubmissions = async () => {
-        if (!token || !backendUrl || !courseId) return;
-
-        setLoadingResources(true);
-
-        try {
-            // Use Promise.all to fetch both resources in parallel
-            const [assignmentsData, submissionsData] = await Promise.all([
-                axios.get(`${backendUrl}/api/getAssignments/${courseId}`, {
-                    headers: { token }
-                }),
-                axios.get(`${backendUrl}/api/submissions`, {
-                    headers: { token }
-                })
-            ]);
-
-            const submissionsMap = submissionsData.data.reduce((acc: Record<string, any>, submission: any) => {
-                acc[submission.assignmentId] = {
-                    ...submission,
-                    graded: submission.grade !== null
-                };
-                return acc;
-            }, {});
-
-            setAssignments(assignmentsData.data);
-            setSubmissions(submissionsMap);
-
-            return { assignments: assignmentsData.data, submissions: submissionsMap };
-        } catch (error) {
-            console.error("Error fetching course data:", error);
-            showNotification("Failed to load course materials", "error");
-            throw error;
-        } finally {
-            setLoadingResources(false);
-        }
-    };
-
-    useEffect(() => {
-        if (token && backendUrl && courseId) {
-            fetchAssignmentsAndSubmissions();
-        }
-    }, [token, courseId, backendUrl]);
 
     const handleLessonClick = (lesson: Lecture) => {
         if (lesson.resourceType.toLowerCase() === 'video') {
@@ -311,6 +293,7 @@ const CourseDetailsPage = () => {
             window.open(lesson.resourceUrl, '_blank');
         }
     };
+
     const handleEnrollment = async () => {
         if (!token || !backendUrl || isEnrolling) return;
         try {
@@ -322,7 +305,6 @@ const CourseDetailsPage = () => {
 
             // Fetch updated data
             await fetchCourses?.();
-
 
             showNotification("Successfully enrolled in the course", "success");
         } catch (error) {
@@ -342,11 +324,12 @@ const CourseDetailsPage = () => {
         }
     };
 
+    // Updated to use submitAssignment from context
     const handleSubmission = async (assignmentId: string) => {
-        if (!selectedFiles[assignmentId] || !token || !backendUrl) return;
+        if (!selectedFiles[assignmentId] || !token) return;
 
         // Get the assignment and check due date
-        const assignment = assignments.find(a => a.id === assignmentId);
+        const assignment = courseAssignments.find(a => a.id === assignmentId);
         if (assignment && assignment.dueDate && new Date() > new Date(assignment.dueDate)) {
             showNotification("Submission due date has passed", "error");
             return;
@@ -354,14 +337,7 @@ const CourseDetailsPage = () => {
 
         setUploading(assignmentId);
         try {
-            const formData = new FormData();
-            formData.append('file', selectedFiles[assignmentId]);
-            formData.append('assignmentId', assignmentId);
-            formData.append('studentId', data?.id ?? '');
-
-            const response = await axios.post(`${backendUrl}/api/submitAssignment`, formData, {
-                headers: { token, 'Content-Type': 'multipart/form-data' }
-            });
+            await submitAssignment?.(assignmentId, selectedFiles[assignmentId]);
 
             // Clear only this assignment's file
             setSelectedFiles(prev => {
@@ -370,21 +346,7 @@ const CourseDetailsPage = () => {
                 return newState;
             });
 
-            // Update local submission state
-            setSubmissions(prev => ({
-                ...prev,
-                [assignmentId]: {
-                    assignmentId,
-                    studentId: data?.id,
-                    submissionUrl: response.data.submissionUrl || '',
-                    grade: null,
-                    feedback: null,
-                    graded: false
-                }
-            }));
-
             showNotification("Assignment submitted successfully", "success");
-            await fetchAssignmentsAndSubmissions();
         } catch (error: any) {
             console.error("Error submitting assignment:", error);
             showNotification(error.response?.data?.message || "Failed to submit assignment", "error");
@@ -392,6 +354,7 @@ const CourseDetailsPage = () => {
             setUploading(null);
         }
     };
+
     const handleCompleteButton = async () => {
         if (!token || !backendUrl) return;
 
@@ -556,23 +519,21 @@ const CourseDetailsPage = () => {
                                 {loadingResources && <LoadingIndicator text="" size="small" />}
                             </h2>
                             <div className="space-y-3.5 overflow-y-auto pr-1.5" style={{ maxHeight: 'calc(100% - 56px)' }}>
-                                {assignments.length > 0 ? (
-                                    assignments.map((assignment, index) => (
+                                {courseAssignments.length > 0 ? (
+                                    courseAssignments.map((assignment) => (
                                         <AssignmentCard
-                                            key={index}
+                                            key={assignment.id}
                                             assignment={assignment}
                                             uploading={uploading}
                                             selectedFiles={selectedFiles}
                                             handleFileChange={handleFileChange}
                                             handleSubmission={handleSubmission}
-                                            submission={submissions[assignment.id]}
+                                            submission={contextSubmissions?.[assignment.id]}
                                         />
                                     ))
                                 ) : (
-                                    <div className="text-center py-8 border border-dashed border-[#E2E8F0] rounded-xl bg-white/40">
-                                        <FileText size={28} className="text-[#CBD5E1] mx-auto mb-3" />
-                                        <p className="text-sm text-[#64748B] font-medium">No assignments available</p>
-                                        <p className="text-xs text-[#94A3B8] mt-2">Assignment documents will be added soon</p>
+                                    <div className="text-center py-8 text-gray-500">
+                                        {loadingResources ? <LoadingIndicator text="Loading assignments..." /> : "No assignments yet."}
                                     </div>
                                 )}
                             </div>
