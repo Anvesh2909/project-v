@@ -151,18 +151,22 @@ const LessonItem = ({ lesson, onClick }: any) => (
     </div>
 );
 const LoadingIndicator = ({ text = "Loading...", size = "small" }: { text?: string, size?: "small" | "medium" | "large" }) => {
-    const dotSize = size === "large" ? "h-3 w-3" : size === "medium" ? "h-2 w-2" : "h-1.5 w-1.5";
-    const spacing = size === "large" ? "space-x-2" : "space-x-1.5";
+    // Size configurations
+    const dotSize = size === "large" ? "h-2.5 w-2.5" : size === "medium" ? "h-2 w-2" : "h-1.5 w-1.5";
+    const spacing = size === "large" ? "space-x-1.5" : "space-x-1";
     const textSize = size === "large" ? "text-sm" : "text-xs";
 
     return (
-        <div className="flex flex-col items-center">
-            <div className={`flex ${spacing} mb-2`}>
-                <div className={`${dotSize} bg-blue-400 rounded-full animate-bounce`} style={{ animationDelay: '0ms' }}></div>
-                <div className={`${dotSize} bg-blue-500 rounded-full animate-bounce`} style={{ animationDelay: '150ms' }}></div>
-                <div className={`${dotSize} bg-blue-600 rounded-full animate-bounce`} style={{ animationDelay: '300ms' }}></div>
+        <div className="flex items-center justify-center">
+            <div className={`flex ${spacing} items-center`}>
+                <div className={`${dotSize} bg-gradient-to-r from-blue-400 to-blue-500 rounded-full animate-pulse opacity-70`}
+                     style={{ animationDuration: '1s', animationDelay: '0ms' }}></div>
+                <div className={`${dotSize} bg-gradient-to-r from-blue-500 to-blue-600 rounded-full animate-pulse opacity-80`}
+                     style={{ animationDuration: '1s', animationDelay: '300ms' }}></div>
+                <div className={`${dotSize} bg-gradient-to-r from-blue-600 to-blue-700 rounded-full animate-pulse opacity-90`}
+                     style={{ animationDuration: '1s', animationDelay: '600ms' }}></div>
             </div>
-            {text && <p className={`${textSize} text-blue-800 font-medium`}>{text}</p>}
+            {text && <p className={`${textSize} text-blue-700 font-medium ml-2`}>{text}</p>}
         </div>
     );
 };
@@ -345,7 +349,6 @@ const CourseDetailsPage = () => {
                 delete newState[assignmentId];
                 return newState;
             });
-
             showNotification("Assignment submitted successfully", "success");
         } catch (error: any) {
             console.error("Error submitting assignment:", error);
@@ -375,7 +378,7 @@ const CourseDetailsPage = () => {
         return (
             <div className="p-4 md:p-8 max-w-6xl mx-auto bg-gradient-to-br from-blue-50/40 to-indigo-50/40 min-h-screen flex items-center justify-center">
                 <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-md border border-white/30 w-full max-w-md">
-                    <div className="flex flex-col items-center">
+                    <div className="flex items-center justify-center">
                         <LoadingIndicator text="Loading course content..." size="large" />
                     </div>
                 </div>
