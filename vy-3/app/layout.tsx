@@ -8,8 +8,8 @@ import MentorProviders from "@/app/MentorProvider";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next"
 export const metadata: Metadata = {
-    title: 'Lurnex',
-    description: 'A NextGen LMS',
+    title: 'VLearn',
+    description: 'Vyuha LMS',
     icons: '/logo.png',
 };
 
