@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
 import { jwtDecode } from "jwt-decode";
 
-// Interfaces remain the same
 export interface Course {
     id: string;
     title: string;
@@ -337,15 +336,15 @@ const AppContextProvider = (props: AppContextProviderProps) => {
         }
     }, [authRequest, data?.id]);
 
-    // Fetch quizzes - memoized to prevent re-renders
     const fetchQuizzes = useCallback(async (courseId: string): Promise<Quiz[]> => {
         try {
-            const response = await authRequest('get', `/api/getQuizzes/${courseId}`);
+            const response = await authRequest('get', `/api/getQuizes/${courseId}`);
             if (response) {
                 setQuizzes(prev => ({
                     ...prev,
                     [courseId]: response.data
                 }));
+                console.log(response);
                 return response.data;
             }
             return [];
@@ -355,7 +354,6 @@ const AppContextProvider = (props: AppContextProviderProps) => {
         }
     }, [authRequest]);
 
-    // Submit quiz - memoized to prevent re-renders
     const submitQuiz = useCallback(async (quizId: string, answers: Record<string, string>): Promise<QuizSubmission> => {
         try {
             const response = await authRequest(

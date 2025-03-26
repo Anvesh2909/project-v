@@ -3,7 +3,6 @@ import * as quizService from '../services/quizService';
 import { QuestionType, DifficultyLevel } from '@prisma/client';
 import {getQuizByCourseId, getQuizById} from "../services/quizService";
 
-// Create a new quiz with AI-generated questions
 export const createQuiz = async (req: Request, res: Response): Promise<void> => {
     try {
         const {
@@ -161,7 +160,7 @@ export const getPerformanceReport = async (req: Request, res: Response): Promise
 };
 export const getQuizzesByCourse = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { courseId } = req.query as { courseId: string };
+        const { courseId } = req.params;
         if (!courseId) {
             res.status(400).json({ error: 'Course ID is required' });
             return;

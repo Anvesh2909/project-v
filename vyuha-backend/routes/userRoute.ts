@@ -30,6 +30,6 @@ userRouter.post("/submitAssignment",authMiddleware,upload,setSubmissionControlle
 userRouter.get("/submissions", authMiddleware, getSubmissionsController);
 userRouter.post("/submitSubmission",authMiddleware,submitFeedbackController);
 userRouter.get("/getUserFeedback/:userId", authMiddleware, getUserFeedbackController);
-userRouter.get("/getQuizes",authMiddleware,getQuizzesByCourse);
+userRouter.get("/getQuizes/:courseId",authMiddleware,getQuizzesByCourse);
 userRouter.get("/quizSubmissions/:courseId", authMiddleware, getQuizSubmissionsByCourse);
 export default userRouter;

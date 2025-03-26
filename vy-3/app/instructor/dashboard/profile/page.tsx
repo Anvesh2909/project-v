@@ -89,5 +89,4 @@ const InstructorProfilePage = () => {
         </div>
     );
 };
-
 export default InstructorProfilePage;

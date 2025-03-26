@@ -4,6 +4,7 @@ import { Clock, Book, Search, Users, Filter, Grid, List, Award } from "lucide-re
 import Image from "next/image";
 import Link from "next/link";
 import { AppContext, Course } from "@/context/AppContext";
+import FallbackImage from '@/components/ui/FallbackImage';
 const CoursesPage = () => {
     const context = useContext(AppContext);
     const [isLoading, setIsLoading] = useState(true);
@@ -230,9 +231,8 @@ const CoursesPage = () => {
                         viewMode === 'grid' ? (
                             // Grid view component (unchanged)
                             <div key={course.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col h-full">
-                                {/* Rest of the grid view component... (unchanged) */}
                                 <div className="relative">
-                                    <Image
+                                    <FallbackImage
                                         src={course.image || "/api/placeholder/500/300"}
                                         alt={course.title}
                                         width={500}
@@ -243,7 +243,6 @@ const CoursesPage = () => {
                                         {course.type}
                                     </div>
                                 </div>
-
                                 <div className="p-5 flex-grow flex flex-col">
                                     <div className="flex justify-between items-start mb-2">
                                         <h3 className="text-lg font-semibold text-gray-800 line-clamp-2">{course.title}</h3>
@@ -355,5 +354,4 @@ const CoursesPage = () => {
         </div>
     );
 };
-
 export default CoursesPage;

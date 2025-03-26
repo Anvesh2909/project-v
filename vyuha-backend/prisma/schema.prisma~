@@ -195,19 +195,19 @@ model Submission {
 }
 
 model Quiz {
-  id              String        @id @default(uuid())
-  title           String
-  course          Course?       @relation(fields: [courseId], references: [id])
-  topic           String?
-  type            String?
+  id     String  @id @default(uuid())
+  title  String
+  course Course? @relation(fields: [courseId], references: [id])
+  topic  String?
+  type   String?
   difficultyLevel String?
-  courseId        String?
-  chapter         Chapter?      @relation(fields: [chapterId], references: [id])
-  chapterId       String?
-  lecture         Lecture?      @relation(fields: [lectureId], references: [id])
-  lectureId       String?
-  questions       Question[]
-  QuizAttempt     QuizAttempt[]
+  courseId    String?
+  chapter     Chapter?      @relation(fields: [chapterId], references: [id])
+  chapterId   String?
+  lecture     Lecture?      @relation(fields: [lectureId], references: [id])
+  lectureId   String?
+  questions   Question[]
+  QuizAttempt QuizAttempt[]
 }
 
 model Question {

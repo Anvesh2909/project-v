@@ -28,7 +28,8 @@ interface InstructorContextType {
     instructorLogout: () => void;
     refreshInstructorData: () => Promise<Instructor | null>;
     courses: Course[];
-    getCourses: () => void;
+    getCourses: () => Promise<Course[]>;
+    isLoading: boolean;
 }
 
 interface InstructorContextProviderProps {
@@ -49,6 +50,7 @@ export interface Course {
     duration: string;
     difficulty: string;
 }
+
 export interface Chapter {
     id: string;
     order: number;
@@ -67,50 +69,77 @@ export interface Lecture {
     resourceUrl?: string;
     flagged: boolean;
     requiresSubmission: boolean;
-    lectureDuration?: number; // This seems redundant with duration
+    lectureDuration?: number;
 }
+
 const InstructorContextProvider = (props: InstructorContextProviderProps) => {
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:9000";
     const [instructorData, setInstructorData] = useState<Instructor | null>(null);
     const [instructorToken, setInstructorToken] = useState('');
     const [isInstructorAuthenticated, setIsInstructorAuthenticated] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
     const [courses, setCourses] = useState<Course[]>([]);
     const REFRESH_INTERVAL = 30000;
 
+    // Initialize context by checking for stored token
     useEffect(() => {
-        if (!instructorToken) {
-            const storedToken = localStorage.getItem('token');
-            if (storedToken) {
-                const decodedToken: any = jwtDecode(storedToken);
-                if (decodedToken.exp * 1000 < Date.now()) {
-                    instructorLogout();
-                } else {
-                    setInstructorToken(storedToken);
-                    setIsInstructorAuthenticated(true);
-                    Cookies.set('token', storedToken, { expires: 7 });
+        const initializeContext = async () => {
+            setIsLoading(true);
+
+            if (!instructorToken) {
+                const storedToken = localStorage.getItem('token');
+                if (storedToken) {
+                    try {
+                        const decodedToken: any = jwtDecode(storedToken);
+                        if (decodedToken.exp * 1000 < Date.now()) {
+                            await instructorLogout();
+                        } else {
+                            setInstructorToken(storedToken);
+                            setIsInstructorAuthenticated(true);
+                            Cookies.set('token', storedToken, { expires: 7 });
+
+                            // Fetch initial data with the stored token
+                            await Promise.all([
+                                getInstructorData(storedToken),
+                                getCourses(storedToken)
+                            ]);
+                        }
+                    } catch (error) {
+                        console.error("Error initializing context:", error);
+                        await instructorLogout();
+                    }
                 }
+            } else {
+                // If token is already set, fetch data
+                await Promise.all([
+                    getInstructorData(instructorToken),
+                    getCourses(instructorToken)
+                ]);
             }
-        }
-        else {
-            getInstructorData(instructorToken);
-            getCourses(instructorToken);
-        }
+
+            setIsLoading(false);
+        };
+
+        initializeContext();
     }, [instructorToken]);
 
     const handleSetInstructorToken = (newToken: string) => {
+        setIsLoading(true);
         setInstructorToken(newToken);
         setIsInstructorAuthenticated(true);
         localStorage.setItem('token', newToken);
         Cookies.set('token', newToken, { expires: 3 / 24 });
-        getInstructorData(newToken);
+
+        // Data will be fetched by the useEffect that depends on instructorToken
         router.push('/instructor/dashboard');
     };
 
-    const instructorLogout = () => {
+    const instructorLogout = async () => {
         setInstructorToken('');
         setIsInstructorAuthenticated(false);
         setInstructorData(null);
+        setCourses([]);
         localStorage.removeItem('token');
         Cookies.remove('token');
         router.push('/instructor/sign-in');
@@ -118,6 +147,7 @@ const InstructorContextProvider = (props: InstructorContextProviderProps) => {
 
     const getInstructorData = async (currentToken: string = instructorToken): Promise<Instructor | null> => {
         if (!currentToken) return null;
+        setIsLoading(true);
 
         try {
             const response = await axios.get(`${backendUrl}/ins/getInstructorProfile`, {
@@ -125,23 +155,26 @@ const InstructorContextProvider = (props: InstructorContextProviderProps) => {
                     token: currentToken
                 }
             });
-            setInstructorData(response.data);
-            return response.data;
-        } catch (e) {
-            console.error(e);
-            if (axios.isAxiosError(e) && e.response?.status === 401) {
-                instructorLogout();
+
+            if (response.data) {
+                setInstructorData(response.data);
+                return response.data;
             }
             return null;
+        } catch (e) {
+            console.error("Error fetching instructor data:", e);
+            if (axios.isAxiosError(e) && e.response?.status === 401) {
+                await instructorLogout();
+            }
+            return null;
+        } finally {
+            setIsLoading(false);
         }
     };
 
-    const refreshInstructorData = async (): Promise<Instructor | null> => {
-        return await getInstructorData();
-    };
-
-    const getCourses = async (currentToken: string = instructorToken) => {
-        if (!currentToken) return;
+    const getCourses = async (currentToken: string = instructorToken): Promise<Course[]> => {
+        if (!currentToken) return [];
+        setIsLoading(true);
 
         try {
             const response = await axios.get(`${backendUrl}/ins/getInstructorCourses`, {
@@ -149,29 +182,46 @@ const InstructorContextProvider = (props: InstructorContextProviderProps) => {
                     token: currentToken
                 }
             });
-            setCourses(response.data);
-        } catch (e:any) {
+
+            // Check if response has data field (pagination) or is the direct array
+            const coursesData = response.data.data ? response.data.data : response.data;
+            setCourses(coursesData);
+            return coursesData;
+        } catch (e: any) {
             console.error("Failed to fetch instructor courses:", e);
             if (e.response && e.response.status === 401) {
-                instructorLogout();
+                await instructorLogout();
             }
             setCourses([]);
+            return [];
+        } finally {
+            setIsLoading(false);
         }
     };
 
-    useEffect(() => {
-        if (instructorToken) {
-            getInstructorData();
-            getCourses();
+    const refreshInstructorData = async (): Promise<Instructor | null> => {
+        setIsLoading(true);
+        try {
+            const [instructorData, coursesData] = await Promise.all([
+                getInstructorData(),
+                getCourses()
+            ]);
+            return instructorData;
+        } catch (error) {
+            console.error("Error refreshing data:", error);
+            return null;
+        } finally {
+            setIsLoading(false);
         }
-    }, [instructorToken]);
+    };
 
+    // Set up automatic refresh of data
     useEffect(() => {
         let intervalId: NodeJS.Timeout;
 
         if (instructorToken) {
             intervalId = setInterval(() => {
-                getInstructorData();
+                refreshInstructorData().catch(console.error);
             }, REFRESH_INTERVAL);
         }
 
@@ -192,7 +242,8 @@ const InstructorContextProvider = (props: InstructorContextProviderProps) => {
         instructorLogout,
         refreshInstructorData,
         courses,
-        getCourses
+        getCourses,
+        isLoading
     };
 
     return (

@@ -106,13 +106,15 @@ export async function createQuiz({
     difficulty: DifficultyLevel;
 }) {
     try {
-        // Create quiz in database
         const quiz = await prisma.quiz.create({
             data: {
                 title,
                 courseId,
                 chapterId,
-                lectureId
+                lectureId,
+                topic,
+                difficultyLevel: difficulty,
+                type:questionType
             }
         });
 

@@ -62,7 +62,6 @@ const ManageCoursePage = () => {
     useEffect(() => {
         const fetchQuizzes = async () => {
             try {
-                // Fetch quizzes for this course
                 const response = await axios.get(`${backendUrl}/ins/quiz/course/${courseId}`, {
                     headers: { token: instructorToken }
                 });
@@ -800,7 +799,7 @@ const ManageCoursePage = () => {
                                 <div className="flex justify-between items-start">
                                     <h3 className="text-lg font-medium text-gray-800">{quiz.title}</h3>
                                     <span className={`px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800`}>
-          {quiz.questionType?.replace(/_/g, ' ')}
+          {quiz.type?.replace(/_/g, ' ')}
         </span>
                                 </div>
 
@@ -1015,12 +1014,12 @@ const ManageCoursePage = () => {
 
                                             <div>
                                                 <h4 className="text-sm font-medium text-gray-500">Question Type</h4>
-                                                <p className="mt-1 text-base">{viewingQuiz.questionType}</p>
+                                                <p className="mt-1 text-base">{viewingQuiz.type?.replace(/_/g, ' ')}</p>
                                             </div>
 
                                             <div>
                                                 <h4 className="text-sm font-medium text-gray-500">Difficulty</h4>
-                                                <p className="mt-1 text-base">{viewingQuiz.difficulty}</p>
+                                                <p className="mt-1 text-base">{viewingQuiz.difficultyLevel}</p>
                                             </div>
                                         </div>
                                     </div>
