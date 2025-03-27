@@ -338,14 +338,14 @@ const AppContextProvider = (props: AppContextProviderProps) => {
 
     const fetchQuizzes = useCallback(async (courseId: string): Promise<Quiz[]> => {
         try {
-            const response = await authRequest('get', `/api/getQuizes/${courseId}`);
-            if (response) {
+            const response = await authRequest('get', `/api/getQuizes`);
+            if (response && response.data.success) {
                 setQuizzes(prev => ({
                     ...prev,
-                    [courseId]: response.data
+                    [courseId]: response.data.quizzes
                 }));
                 console.log(response);
-                return response.data;
+                return response.data.quizzes;
             }
             return [];
         } catch (e) {

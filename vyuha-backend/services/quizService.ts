@@ -458,3 +458,15 @@ export async function getQuizSubmissionsByCourseId(courseId: string, studentId: 
         throw new Error(`Failed to fetch quiz submissions: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 }
+export async function getQuizes(){
+    try {
+        return await prisma.quiz.findMany({
+            include: {
+                questions: true
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching quizzes:', error);
+        throw new Error(`Failed to fetch quizzes: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+}

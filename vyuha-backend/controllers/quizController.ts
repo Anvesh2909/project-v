@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import * as quizService from '../services/quizService';
 import { QuestionType, DifficultyLevel } from '@prisma/client';
-import {getQuizByCourseId, getQuizById} from "../services/quizService";
+import {getQuizByCourseId, getQuizById, getQuizes} from "../services/quizService";
 
 export const createQuiz = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -201,3 +201,15 @@ export const getQuizSubmissionsByCourse = async (req: Request, res: Response): P
         });
     }
 };
+export const getAllQuizzes = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const quizzes = await getQuizes();
+        res.status(200).json({ success: true, quizzes });
+    } catch (error) {
+        console.error('Error in getAllQuizzes controller:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error fetching quizzes'
+        });
+    }
+}
