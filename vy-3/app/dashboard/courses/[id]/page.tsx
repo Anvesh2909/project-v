@@ -1,5 +1,6 @@
 "use client";
 import React, {useContext, useEffect, useMemo, useState} from 'react';
+import QuizStartButton from '@/components/student/QuizButton';
 import {
     Book,
     BookOpen,
@@ -53,8 +54,8 @@ const AssignmentCard = ({ assignment, uploading, selectedFiles, handleFileChange
                     <p className="text-sm font-semibold text-[#1E293B] truncate">{assignment.title}</p>
                     <p className="text-xs text-[#64748B] tracking-wide">ASSIGNMENT</p>
 
-                    {/* Show due date info */}
-                    {assignment.dueDate && (
+                    {/* Show due date info, but only if not submitted */}
+                    {assignment.dueDate && !submission && (
                         <p className={`text-xs mt-1 ${dueDatePassed ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
                             {dueDatePassed ? 'Due date passed: ' : 'Due: '}
                             {new Date(assignment.dueDate).toLocaleDateString()}
@@ -75,7 +76,7 @@ const AssignmentCard = ({ assignment, uploading, selectedFiles, handleFileChange
                                     )}
                                 </div>
                             ) : (
-                                <span className="text-xs bg-yellow-100 text-yellow-700 px-2.5 py-0.5 rounded-full inline-block w-fit font-medium">
+                                <span className="text-xs bg-green-100 text-green-700 px-2.5 py-0.5 rounded-full inline-block w-fit font-medium">
                                     Submitted - Awaiting grade
                                 </span>
                             )}
@@ -105,7 +106,7 @@ const AssignmentCard = ({ assignment, uploading, selectedFiles, handleFileChange
                     </>
                 )}
 
-                {/* Show due date passed message if no submission */}
+                {/* Show due date passed message ONLY if no submission */}
                 {!submission && dueDatePassed && (
                     <span className="text-xs bg-red-100 text-red-700 px-2.5 py-1 rounded-full inline-block font-medium">
                         Submission closed
@@ -211,7 +212,8 @@ const CourseDetailsPage = () => {
         assignments: contextAssignments,
         submissions: contextSubmissions,
         fetchAssignments,
-        submitAssignment
+        submitAssignment, quizzes,
+        fetchQuizzes
     } = useContext(AppContext) || {};
 
     const { showNotification } = useNotification();
@@ -224,11 +226,10 @@ const CourseDetailsPage = () => {
     const [localIsEnrolled, setLocalIsEnrolled] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [loadingResources, setLoadingResources] = useState(false);
-
+    const [loadingQuizzes, setLoadingQuizzes] = useState(false);
     const studentId = data?.id;
     const courseDetails = courses?.find(course => course.id === courseId);
 
-    // Get assignments for this course from context
     const courseAssignments = useMemo(() =>
             contextAssignments?.[courseId] || [],
         [contextAssignments, courseId]
@@ -241,20 +242,32 @@ const CourseDetailsPage = () => {
                 setIsLoading(false);
             });
         }
+        console.log(quizzes);
     }, [token, fetchCourses]);
 
-    // Updated to use context methods
     useEffect(() => {
         if (token && courseId) {
             setLoadingResources(true);
-            Promise.all([
-                fetchAssignments?.(courseId)
-            ]).finally(() => {
-                setLoadingResources(false);
-            });
+            fetchAssignments?.(courseId)
+                .finally(() => {
+                    setLoadingResources(false);
+                    setLoadingQuizzes(false);
+                });
         }
     }, [token, courseId, fetchAssignments]);
-
+    useEffect(() => {
+        if (token && courseId) {
+            setLoadingQuizzes(true);
+            fetchQuizzes?.(courseId)
+                .then(() => {
+                    setLoadingQuizzes(false);
+                })
+                .catch((error) => {
+                    console.error("Error fetching quizzes:", error);
+                    setLoadingQuizzes(false);
+                });
+        }
+    }, [token, courseId, fetchQuizzes]);
     const enrollmentStatus = useMemo(() => {
         // First check enrollments from global context
         const fromEnrollments = enrollments?.some(e =>
@@ -537,6 +550,39 @@ const CourseDetailsPage = () => {
                                 ) : (
                                     <div className="text-center py-8 text-gray-500">
                                         {loadingResources ? <LoadingIndicator text="Loading assignments..." /> : "No assignments yet."}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-5 border border-white/30 shadow-md mt-6">
+                            <h2 className="text-lg font-bold mb-4 text-[#1E293B] flex items-center justify-between">
+                                <div className="flex items-center">
+                                    <BookOpen size={20} className="text-[#2563EB] mr-2.5" />
+                                    Quizzes
+                                </div>
+                                {loadingQuizzes && <LoadingIndicator text="" size="small" />}
+                            </h2>
+                            <div className="space-y-3.5">
+                                {quizzes && Array.isArray(quizzes) && quizzes.filter((quiz) => quiz.courseId === courseId).length > 0 ? (
+                                    quizzes
+                                        .filter((quiz) => quiz.courseId === courseId)
+                                        .map((quiz) => (
+                                            <div key={quiz.id} className="flex items-center justify-between p-4 bg-white/70 rounded-xl hover:bg-white/90 transition-all duration-200 border border-[#E2E8F0]/80 shadow-sm">
+                                                <div className="flex items-center space-x-3.5 flex-1 min-w-0">
+                                                    <div className="p-2 bg-[#EFF6FF] rounded-lg shadow-sm">
+                                                        <BookOpen size={16} className="text-[#2563EB] shrink-0" />
+                                                    </div>
+                                                    <div className="truncate">
+                                                        <p className="text-sm font-semibold text-[#1E293B] truncate">{quiz.title}</p>
+                                                        <p className="text-xs text-[#64748B] tracking-wide">{quiz.questions.length} Questions</p>
+                                                    </div>
+                                                </div>
+                                                <QuizStartButton quizId={quiz.id} courseId={courseId} />
+                                            </div>
+                                        ))
+                                ) : (
+                                    <div className="text-center py-8 text-gray-500">
+                                        {loadingQuizzes ? <LoadingIndicator text="Loading quizzes..." /> : "No quizzes available for this course."}
                                     </div>
                                 )}
                             </div>

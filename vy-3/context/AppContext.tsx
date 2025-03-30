@@ -87,6 +87,7 @@ export interface QuizQuestion {
 }
 
 export interface QuizSubmission {
+    attempt: any;
     id: string;
     quizId: string;
     studentId: string;
@@ -340,12 +341,15 @@ const AppContextProvider = (props: AppContextProviderProps) => {
         try {
             const response = await authRequest('get', `/api/getQuizes`);
             if (response && response.data.success) {
-                setQuizzes(prev => ({
-                    ...prev,
-                    [courseId]: response.data.quizzes
-                }));
-                console.log(response);
-                return response.data.quizzes;
+                // Store all quizzes in state without using courseId as keys
+                setQuizzes(response.data.quizzes);
+
+                // Still filter for the return value
+                const courseQuizzes = response.data.quizzes.filter(
+                    (quiz: Quiz) => quiz.courseId === courseId
+                );
+
+                return courseQuizzes;
             }
             return [];
         } catch (e) {
