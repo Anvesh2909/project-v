@@ -42,7 +42,6 @@ export const createQuiz = async (req: Request, res: Response): Promise<void> => 
     }
 };
 
-// Get a quiz by ID
 export const getQuiz = async (req: Request, res: Response): Promise<void> => {
     try {
         const { quizId } = req.params;
@@ -69,7 +68,6 @@ export const getQuiz = async (req: Request, res: Response): Promise<void> => {
     }
 };
 
-// Submit answers to a quiz
 export const submitQuizAttempt = async (req: Request, res: Response): Promise<void> => {
     try {
         const { quizId, answers } = req.body;

@@ -299,7 +299,7 @@ const ManageCoursePage = () => {
                         {course?.price !== undefined && <p className="text-gray-700"><span className="font-medium text-gray-900">Price:</span> ${course.price}</p>}
                         {course?.category && <p className="text-gray-700"><span className="font-medium text-gray-900">Category:</span> {course.category}</p>}
                         {course?.courseType && <p className="text-gray-700"><span className="font-medium text-gray-900">Type:</span> {course.courseType}</p>}
-                        {course?.difficulty && <p className="text-gray-700"><span className="font-medium text-gray-900">Difficulty:</span> {course.difficulty}</p>}
+                        {course?.difficulty && <p className="text-gray-700"><span className="font-medium text-gray-900">Difficulty:</span> {course.difficulty.replace(/_/g, ' ')}</p>}
                         {course?.duration && <p className="text-gray-700"><span className="font-medium text-gray-900">Duration:</span> {course.duration}</p>}
                     </div>
                 </div>
