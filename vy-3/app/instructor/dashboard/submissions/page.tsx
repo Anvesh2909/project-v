@@ -35,6 +35,7 @@ type PaginationMetadata = {
     pageSize: number;
 };
 
+
 const SubmissionsPage = () => {
     const [submissions, setSubmissions] = useState<Submission[]>([]);
     const [loading, setLoading] = useState(true);

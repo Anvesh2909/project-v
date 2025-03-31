@@ -1,33 +1,43 @@
 import { useRouter } from 'next/navigation';
 import React from 'react';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, Check } from 'lucide-react';
 
 interface QuizStartButtonProps {
     quizId: string;
     courseId: string;
     title?: string;
     className?: string;
+    attempts?: any[];
+    showScore?: boolean;
 }
 
-const QuizStartButton = ({ quizId, courseId, title = "Start Quiz", className = "" }: QuizStartButtonProps) => {
+const QuizStartButton = ({
+                             quizId,
+                             courseId,
+                             title = "Start Quiz",
+                             className = "",
+                             attempts = [],
+                             showScore = false
+                         }: QuizStartButtonProps) => {
     const router = useRouter();
 
     const handleStartQuiz = () => {
-        // Open in a new window if it's a quiz
         const url = `/dashboard/courses/${courseId}/quiz?quizId=${quizId}`;
-
-        // Open in a popup window with specific dimensions
-        const width = 1024;
-        const height = 768;
-        const left = (window.screen.width - width) / 2;
-        const top = (window.screen.height - height) / 2;
-
-        window.open(
-            url,
-            `quiz_${quizId}`,
-            `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
-        );
+        window.open(url, '_blank');
     };
+
+    // If we have attempts and showScore is true, display the best score
+    if (showScore && attempts && attempts.length > 0) {
+        // Find the highest score among attempts
+        const bestScore = Math.max(...attempts.map(attempt => attempt.score || 0));
+
+        return (
+            <div className={`flex items-center space-x-2 bg-green-100 text-green-700 px-4 py-2 rounded-lg font-medium ${className}`}>
+                <Check size={18} />
+                <span>Score: {bestScore}%</span>
+            </div>
+        );
+    }
 
     return (
         <button

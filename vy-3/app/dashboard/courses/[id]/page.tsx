@@ -213,7 +213,7 @@ const CourseDetailsPage = () => {
         submissions: contextSubmissions,
         fetchAssignments,
         submitAssignment, quizzes,
-        fetchQuizzes
+        fetchQuizzes, quizAttempts, getQuizAttempts,isLoading
     } = useContext(AppContext) || {};
 
     const { showNotification } = useNotification();
@@ -224,7 +224,7 @@ const CourseDetailsPage = () => {
     const [selectedFiles, setSelectedFiles] = useState<Record<string, File>>({});
     // Remove local state for assignments and submissions
     const [localIsEnrolled, setLocalIsEnrolled] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingCourse, setIsLoadingCourse] = useState(true);
     const [loadingResources, setLoadingResources] = useState(false);
     const [loadingQuizzes, setLoadingQuizzes] = useState(false);
     const studentId = data?.id;
@@ -237,9 +237,9 @@ const CourseDetailsPage = () => {
 
     useEffect(() => {
         if (token) {
-            setIsLoading(true);
+            setIsLoadingCourse(true);
             fetchCourses?.().finally(() => {
-                setIsLoading(false);
+                setIsLoadingCourse(false);
             });
         }
         console.log(quizzes);
@@ -387,6 +387,11 @@ const CourseDetailsPage = () => {
             showNotification("Failed to complete course", "error");
         }
     };
+    useEffect(() => {
+        if (token) {
+            getQuizAttempts?.();
+        }
+    }, [token, getQuizAttempts]);
     if (!data || !courses || courses.length === 0) {
         return (
             <div className="p-4 md:p-8 max-w-6xl mx-auto bg-gradient-to-br from-blue-50/40 to-indigo-50/40 min-h-screen flex items-center justify-center">
@@ -415,6 +420,7 @@ const CourseDetailsPage = () => {
         );
     }
     return (
+
         <div className="p-4 md:p-8 max-w-6xl mx-auto bg-gradient-to-br from-blue-50/40 to-indigo-50/40 min-h-screen">
             <div className="flex flex-col lg:flex-row gap-6 mb-8">
                 {/* Course Header Card */}
@@ -425,14 +431,22 @@ const CourseDetailsPage = () => {
                             alt={courseDetails.title}
                             className="w-full h-48 md:h-72 object-cover"
                         />
-                        {!enrollmentStatus.isEnrolled && (
-                            <div className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1.5 rounded-full text-sm font-semibold shadow-md">
-                                Not Enrolled
-                            </div>
-                        )}
-                        {enrollmentStatus.isEnrolled && (
-                            <div className="absolute top-4 right-4 bg-green-500 text-white px-3 py-1.5 rounded-full text-sm font-semibold shadow-md">
-                                Enrolled
+                        {!isLoading ? (
+                            <>
+                                {!enrollmentStatus.isEnrolled && (
+                                    <div className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1.5 rounded-full text-sm font-semibold shadow-md">
+                                        Not Enrolled
+                                    </div>
+                                )}
+                                {enrollmentStatus.isEnrolled && (
+                                    <div className="absolute top-4 right-4 bg-green-500 text-white px-3 py-1.5 rounded-full text-sm font-semibold shadow-md">
+                                        Enrolled
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <div className="absolute top-4 right-4 bg-gray-400 text-white px-3 py-1.5 rounded-full text-sm font-semibold shadow-md">
+                                Loading...
                             </div>
                         )}
                     </div>
@@ -577,7 +591,12 @@ const CourseDetailsPage = () => {
                                                         <p className="text-xs text-[#64748B] tracking-wide">{quiz.questions.length} Questions</p>
                                                     </div>
                                                 </div>
-                                                <QuizStartButton quizId={quiz.id} courseId={courseId} />
+                                                <QuizStartButton
+                                                    quizId={quiz.id}
+                                                    courseId={courseId}
+                                                    attempts={quizAttempts?.[quiz.id] || []}
+                                                    showScore={true}
+                                                />
                                             </div>
                                         ))
                                 ) : (

@@ -87,6 +87,7 @@ export interface QuizQuestion {
 }
 
 export interface QuizSubmission {
+    result: any;
     attempt: any;
     id: string;
     quizId: string;
@@ -138,9 +139,21 @@ interface AppContextType {
     quizzes: Record<string, Quiz[]>;
     quizSubmissions: Record<string, QuizSubmission>;
     fetchQuizzes: (courseId: string) => Promise<Quiz[]>;
-    submitQuiz: (quizId: string, answers: Record<string, string>) => Promise<QuizSubmission>;
+    submitQuiz: (quizId: string, answers: { questionId: string; answer: string; }[]) => Promise<QuizSubmission>;
+    quizAttempts: Record<string, QuizAttempt[]>;
+    getQuizAttempts: () => Promise<void>;
+    isLoading: boolean;
 }
 
+export interface QuizAttempt {
+    id: string;
+    quizId: string;
+    studentId: string;
+    startedAt: Date;
+    completedAt: Date | null;
+    score: number | null;
+    status: 'IN_PROGRESS' | 'COMPLETED' | 'ABANDONED';
+}
 interface AppContextProviderProps {
     children: ReactNode;
 }
@@ -160,6 +173,8 @@ const AppContextProvider = (props: AppContextProviderProps) => {
     const [quizzes, setQuizzes] = useState<Record<string, Quiz[]>>({});
     const [quizSubmissions, setQuizSubmissions] = useState<Record<string, QuizSubmission>>({});
     const [isInitialized, setIsInitialized] = useState(false);
+    const [quizAttempts, setQuizAttempts] = useState<Record<string, QuizAttempt[]>>({});
+    const [isLoading, setIsLoading] = useState(true);
     const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
     // Memoized token expiration check to prevent re-renders
@@ -336,7 +351,47 @@ const AppContextProvider = (props: AppContextProviderProps) => {
             throw error;
         }
     }, [authRequest, data?.id]);
+    const getQuizAttempts = useCallback(async () => {
+        try {
+            const response = await authRequest('get', '/api/getAttempts');
+            if (response) {
+                console.log("Quiz attempts response:", response.data);
 
+                // Determine the correct data structure based on the response
+                let attemptsArray;
+
+                if (Array.isArray(response.data)) {
+                    attemptsArray = response.data;
+                } else if (response.data && typeof response.data === 'object') {
+                    // Check possible locations of the attempts array
+                    if (Array.isArray(response.data.attempts)) {
+                        attemptsArray = response.data.attempts;
+                    } else if (Array.isArray(response.data.data)) {
+                        attemptsArray = response.data.data;
+                    } else if (response.data.success && Array.isArray(response.data.quizAttempts)) {
+                        attemptsArray = response.data.quizAttempts;
+                    } else {
+                        // If we can't find an array, create an empty one
+                        console.error("Unexpected format from getAttempts API:", response.data);
+                        attemptsArray = [];
+                    }
+                } else {
+                    attemptsArray = [];
+                }
+                const attemptsByQuiz = attemptsArray.reduce((acc: Record<string, QuizAttempt[]>, attempt: QuizAttempt) => {
+                    if (!acc[attempt.quizId]) {
+                        acc[attempt.quizId] = [];
+                    }
+                    acc[attempt.quizId].push(attempt);
+                    return acc;
+                }, {});
+
+                setQuizAttempts(attemptsByQuiz);
+            }
+        } catch (e) {
+            console.error("Error fetching quiz attempts:", e);
+        }
+    }, [authRequest]);
     const fetchQuizzes = useCallback(async (courseId: string): Promise<Quiz[]> => {
         try {
             const response = await authRequest('get', `/api/getQuizes`);
@@ -358,15 +413,25 @@ const AppContextProvider = (props: AppContextProviderProps) => {
         }
     }, [authRequest]);
 
-    const submitQuiz = useCallback(async (quizId: string, answers: Record<string, string>): Promise<QuizSubmission> => {
+    const submitQuiz = useCallback(async (
+        quizId: string,
+        answers: { questionId: string; answer: string }[]
+    ): Promise<QuizSubmission> => {
         try {
+            const formattedAnswers = !Array.isArray(answers)
+                ? Object.entries(answers).map(([questionId, answer]) => ({
+                    questionId,
+                    answer
+                }))
+                : answers;
+
             const response = await authRequest(
                 'post',
                 '/api/submitQuiz',
                 {
                     quizId,
                     studentId: data?.id,
-                    answers
+                    answers: formattedAnswers
                 }
             );
 
@@ -376,6 +441,7 @@ const AppContextProvider = (props: AppContextProviderProps) => {
                     ...prev,
                     [quizId]: submission
                 }));
+                console.log(submission);
                 return submission;
             }
             throw new Error("Failed to submit quiz");
@@ -395,7 +461,7 @@ const AppContextProvider = (props: AppContextProviderProps) => {
         await fetchCourses();
         await getEnrollments();
         await fetchSubmissions();
-
+        await getQuizAttempts();
         if (data?.courses) {
             const promises = data.courses.flatMap(course => [
                 fetchAssignments(course.id),
@@ -419,23 +485,24 @@ const AppContextProvider = (props: AppContextProviderProps) => {
     }, [isTokenExpired, logout]);
 
     // Initialize data fetch after token is set
+    // Line ~370 in AppContext.tsx - Update the initialization useEffect
     useEffect(() => {
         if (token && !isInitialized) {
-            // Flag to prevent multiple initializations
             setIsInitialized(true);
+            setIsLoading(true);
 
-            // Initial data load
-            (async () => {
-                try {
-                    // Sequential loading for initial data
-                    await getData();
-                    await fetchCourses();
-                    await getEnrollments();
-                    await fetchSubmissions();
-                } catch (error) {
+            Promise.all([
+                getData(),
+                fetchCourses(),
+                getEnrollments(),
+                fetchSubmissions()
+            ])
+                .catch(error => {
                     console.error("Error during initialization:", error);
-                }
-            })();
+                })
+                .finally(() => {
+                    setIsLoading(false);
+                });
         }
     }, [token, isInitialized, getData, fetchCourses, getEnrollments, fetchSubmissions]);
 
@@ -481,7 +548,10 @@ const AppContextProvider = (props: AppContextProviderProps) => {
         quizzes,
         quizSubmissions,
         fetchQuizzes,
-        submitQuiz
+        submitQuiz,
+        quizAttempts,
+        getQuizAttempts,
+        isLoading
     };
 
     return (

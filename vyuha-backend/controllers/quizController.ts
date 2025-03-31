@@ -70,8 +70,7 @@ export const getQuiz = async (req: Request, res: Response): Promise<void> => {
 
 export const submitQuizAttempt = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { quizId, answers } = req.body;
-        const studentId = req.body?.id; // Using req.user instead of req.body.id
+        const { quizId, answers,studentId } = req.body;
 
         if (!studentId) {
             res.status(401).json({ error: 'Authentication required' });
@@ -95,10 +94,9 @@ export const submitQuizAttempt = async (req: Request, res: Response): Promise<vo
     }
 };
 
-// Get quiz attempts for a student
 export const getStudentQuizAttempts = async (req: Request, res: Response): Promise<void> => {
     try {
-        const studentId = req.body?.id; // Using req.user instead of req.body.id
+        const studentId = req.body?.id;
         const { quizId } = req.query;
 
         if (!studentId) {
@@ -208,6 +206,18 @@ export const getAllQuizzes = async (req: Request, res: Response): Promise<void> 
         res.status(500).json({
             success: false,
             error: error instanceof Error ? error.message : 'Unknown error fetching quizzes'
+        });
+    }
+}
+export const getAllQuizSubmissions = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const submissions = await quizService.getAllQuizSubmissions();
+        res.status(200).json(submissions);
+    } catch (error) {
+        console.error('Error in getAllQuizSubmissions controller:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error fetching quiz submissions'
         });
     }
 }

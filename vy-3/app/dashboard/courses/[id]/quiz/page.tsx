@@ -4,7 +4,6 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { AppContext } from '@/context/AppContext';
 import { ArrowLeft, CheckCircle, Clock, X } from 'lucide-react';
 import { useNotification } from '@/context/NotificationContext';
-import axios from 'axios';
 
 interface Question {
     id: string;
@@ -26,6 +25,7 @@ interface Quiz {
     difficultyLevel: string;
     type: string;
     questions: Question[];
+    courseId?: string;
 }
 
 const QuizPage = () => {
@@ -35,46 +35,61 @@ const QuizPage = () => {
     const quizId = searchParams.get('quizId');
     const courseId = params.id as string;
 
-    const { data, token, backendUrl, submitQuiz } = useContext(AppContext) || {};
+    const { token, backendUrl, submitQuiz } = useContext(AppContext) || {};
     const { showNotification } = useNotification();
 
     const [quiz, setQuiz] = useState<Quiz | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [currentQuestion, setCurrentQuestion] = useState(0);
     const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
-    const [timeRemaining, setTimeRemaining] = useState<number | null>(30 * 60); // Default 30 minutes
+    const [timeRemaining, setTimeRemaining] = useState<number | null>(30 * 60);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [quizCompleted, setQuizCompleted] = useState(false);
     const [score, setScore] = useState<number | null>(null);
     const [isStandaloneWindow, setIsStandaloneWindow] = useState(false);
 
     useEffect(() => {
-        // Check if running in a popup window
         setIsStandaloneWindow(window.opener !== null);
     }, []);
 
     useEffect(() => {
-        if (!quizId || !token || !backendUrl) return;
+        if (!quizId) return;
 
-        setIsLoading(true);
-        axios.get(`${backendUrl}/api/quizzes/${quizId}`, {
-            headers: { token }
-        })
-            .then(response => {
-                setQuiz(response.data);
-                // Set time based on question count (2 minutes per question)
-                setTimeRemaining(response.data.questions.length * 2 * 60);
-            })
-            .catch(error => {
-                console.error('Error fetching quiz:', error);
-                showNotification('Failed to load quiz', 'error');
-            })
-            .finally(() => {
+        const fetchQuiz = async () => {
+            setIsLoading(true);
+
+            try {
+                if (token) {
+                    const response = await fetch(`${backendUrl}/api/getQuizes`, {
+                        headers: { token }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch quiz: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    const quizzesArray = data.quizzes || data;
+                    const foundQuiz = Array.isArray(quizzesArray)
+                        ? quizzesArray.find(quiz => quiz.id === quizId)
+                        : quizzesArray.courseQuizzes?.find((quiz: { id: string }) => quiz.id === quizId);
+
+                    if (foundQuiz) {
+                        setQuiz(foundQuiz);
+                        setTimeRemaining(foundQuiz.questions.length * 2 * 60);
+                    } else {
+                        showNotification('Quiz not found', 'error');
+                    }
+                }
+            } catch (error: any) {
+                showNotification(`Error loading quiz: ${error.message}`, 'error');
+            } finally {
                 setIsLoading(false);
-            });
-    }, [quizId, token, backendUrl, showNotification]);
+            }
+        };
+        fetchQuiz();
+    }, [quizId, backendUrl, token, showNotification]);
 
-    // Timer logic
     useEffect(() => {
         if (timeRemaining === null || quizCompleted) return;
 
@@ -114,20 +129,17 @@ const QuizPage = () => {
     };
 
     const handleSubmitQuiz = async () => {
-        if (!quiz || !token || !backendUrl || !submitQuiz) return;
-
-        // Format answers for submission
-        const answersArray = Object.entries(selectedAnswers).map(([questionId, answer]) => ({
-            questionId,
-            answer
-        }));
+        if (!quiz || !token || !submitQuiz) return;
 
         setIsSubmitting(true);
         try {
-            const result = await submitQuiz(quiz.id, selectedAnswers);
-
+            const answersArray = Object.entries(selectedAnswers).map(([questionId, answer]) => ({
+                questionId,
+                answer
+            }));
+            const result = await submitQuiz(quiz.id, answersArray);
             setQuizCompleted(true);
-            setScore(result.attempt.score);
+            setScore(result.result.attempt.score);
             showNotification('Quiz submitted successfully', 'success');
         } catch (error) {
             console.error('Error submitting quiz:', error);
@@ -145,7 +157,6 @@ const QuizPage = () => {
         }
     };
 
-    // Format time remaining as mm:ss
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
@@ -156,7 +167,6 @@ const QuizPage = () => {
         return (
             <div className="fixed inset-0 bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center z-50">
                 <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-8 shadow-lg border border-white/30 w-full max-w-md text-center">
-                    {/* Loading spinner */}
                     <div className="flex items-center justify-center space-x-1">
                         <div className="h-2 w-2 bg-blue-600 rounded-full animate-pulse" style={{ animationDelay: '0ms' }}></div>
                         <div className="h-2 w-2 bg-blue-600 rounded-full animate-pulse" style={{ animationDelay: '300ms' }}></div>
@@ -221,7 +231,6 @@ const QuizPage = () => {
     return (
         <div className="fixed inset-0 bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center z-50">
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/30 w-full max-w-4xl mx-4 overflow-hidden">
-                {/* Quiz Header */}
                 <div className="bg-white p-5 border-b border-gray-200 flex items-center justify-between">
                     <div>
                         <h1 className="text-xl font-bold text-gray-800">{quiz.title}</h1>
@@ -243,21 +252,18 @@ const QuizPage = () => {
                     </div>
                 </div>
 
-                {/* Quiz Content */}
                 <div className="p-6 md:p-8">
                     <div className="mb-8">
                         <h2 className="text-lg font-medium text-gray-800 mb-4">
                             {quiz.questions[currentQuestion]?.question}
                         </h2>
 
-                        {/* Show code snippet if exists */}
                         {quiz.questions[currentQuestion]?.codeSnippet && (
                             <pre className="bg-gray-800 text-gray-100 p-4 rounded-lg mb-4 overflow-x-auto">
-                <code>{quiz.questions[currentQuestion].codeSnippet}</code>
-              </pre>
+                                <code>{quiz.questions[currentQuestion].codeSnippet}</code>
+                            </pre>
                         )}
 
-                        {/* Show image if exists */}
                         {quiz.questions[currentQuestion]?.imageUrl && (
                             <div className="mb-4">
                                 <img
@@ -285,7 +291,6 @@ const QuizPage = () => {
                         </div>
                     </div>
 
-                    {/* Navigation Buttons */}
                     <div className="flex justify-between">
                         <button
                             onClick={handlePrevQuestion}
@@ -319,7 +324,6 @@ const QuizPage = () => {
                     </div>
                 </div>
 
-                {/* Quiz Progress Bar */}
                 <div className="w-full bg-gray-100 h-1.5">
                     <div
                         className="bg-blue-600 h-full transition-all duration-300"

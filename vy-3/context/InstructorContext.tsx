@@ -30,6 +30,8 @@ interface InstructorContextType {
     courses: Course[];
     getCourses: () => Promise<Course[]>;
     isLoading: boolean;
+    quizAttempts: Record<string, QuizAttempt[]>;
+    getQuizAttempts: () => Promise<void>;
 }
 
 interface InstructorContextProviderProps {
@@ -71,7 +73,15 @@ export interface Lecture {
     requiresSubmission: boolean;
     lectureDuration?: number;
 }
-
+export interface QuizAttempt {
+    id: string;
+    quizId: string;
+    studentId: string;
+    startedAt: Date;
+    completedAt: Date | null;
+    score: number | null;
+    status: 'IN_PROGRESS' | 'COMPLETED' | 'ABANDONED';
+}
 const InstructorContextProvider = (props: InstructorContextProviderProps) => {
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:9000";
     const [instructorData, setInstructorData] = useState<Instructor | null>(null);
@@ -80,6 +90,7 @@ const InstructorContextProvider = (props: InstructorContextProviderProps) => {
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
     const [courses, setCourses] = useState<Course[]>([]);
+    const [quizAttempts, setQuizAttempts] = useState<Record<string, QuizAttempt[]>>({});
     const REFRESH_INTERVAL = 30000;
 
     // Initialize context by checking for stored token
@@ -198,7 +209,44 @@ const InstructorContextProvider = (props: InstructorContextProviderProps) => {
             setIsLoading(false);
         }
     };
+    // Fix for getQuizAttempts in InstructorContext.tsx
+    const getQuizAttempts = async (currentToken: string = instructorToken): Promise<void> => {
+        if (!currentToken) return;
+        setIsLoading(true);
 
+        try {
+            const response = await axios.get(`${backendUrl}/ins/getAttempts`, {
+                headers: {
+                    token: currentToken
+                }
+            });
+            console.info(response.data);
+
+            if (response.data) {
+                const attemptsArray = Array.isArray(response.data)
+                    ? response.data
+                    : response.data.attempts || response.data.data || [];
+
+                const attemptsByQuiz: Record<string, QuizAttempt[]> = {};
+
+                attemptsArray.forEach((attempt: QuizAttempt) => {
+                    if (!attemptsByQuiz[attempt.quizId]) {
+                        attemptsByQuiz[attempt.quizId] = [];
+                    }
+                    attemptsByQuiz[attempt.quizId].push(attempt);
+                });
+
+                setQuizAttempts(attemptsByQuiz);
+            }
+        } catch (e) {
+            console.error("Error fetching quiz attempts:", e);
+            if (axios.isAxiosError(e) && e.response?.status === 401) {
+                await instructorLogout();
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    };
     const refreshInstructorData = async (): Promise<Instructor | null> => {
         setIsLoading(true);
         try {
@@ -243,7 +291,9 @@ const InstructorContextProvider = (props: InstructorContextProviderProps) => {
         refreshInstructorData,
         courses,
         getCourses,
-        isLoading
+        isLoading,
+        quizAttempts,
+        getQuizAttempts
     };
 
     return (

@@ -195,7 +195,7 @@ model Submission {
 }
 
 model Quiz {
-  id              String        @id @default(uuid())
+  id              String        @id
   title           String
   course          Course?       @relation(fields: [courseId], references: [id])
   topic           String?

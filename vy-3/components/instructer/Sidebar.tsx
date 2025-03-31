@@ -3,7 +3,7 @@ import React, {useContext, useState} from 'react';
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Book, PlusCircle, Settings, LogOut, ChevronRight, FileText } from "lucide-react";
+import { Book, PlusCircle, Settings, LogOut, ChevronRight, FileText, ClipboardCheck } from "lucide-react";
 import {InstructorContext} from "@/context/InstructorContext";
 
 const Sidebar = () => {
@@ -16,6 +16,7 @@ const Sidebar = () => {
         { name: "Manage Courses", Icon: Book, href: "/instructor/dashboard/manage" },
         { name: "Create Course", Icon: PlusCircle, href: "/instructor/dashboard/create" },
         { name: "Submissions", Icon: FileText, href: "/instructor/dashboard/submissions" },
+        { name: "Quiz Attempts", Icon: ClipboardCheck, href: "/instructor/dashboard/quizSubmissions" },
         { name: "Settings", Icon: Settings, href: "/instructor/dashboard/settings" }
     ];
     const isRouteActive = (href: string) => {

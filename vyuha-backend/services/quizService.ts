@@ -106,19 +106,31 @@ export async function createQuiz({
     difficulty: DifficultyLevel;
 }) {
     try {
+        let quizId: string;
+        const timestamp = Date.now().toString();
+        if (courseId) {
+            quizId = `${courseId}_quiz_${timestamp}`;
+        } else if (chapterId) {
+            quizId = `${chapterId}_quiz_${timestamp}`;
+        } else if (lectureId) {
+            quizId = `${lectureId}_quiz_${timestamp}`;
+        } else {
+            quizId = `Quiz_${timestamp}`;
+        }
+
         const quiz = await prisma.quiz.create({
             data: {
+                id: quizId,
                 title,
                 courseId,
                 chapterId,
                 lectureId,
                 topic,
                 difficultyLevel: difficulty,
-                type:questionType
+                type: questionType
             }
         });
 
-        // Generate questions
         const questions = await generateQuestions({
             topic,
             count: questionCount,
@@ -233,7 +245,6 @@ export async function submitQuizAttempt(
             }
         });
 
-        // Evaluate each answer
         const evaluationPromises = answers.map(async (answer) => {
             const evaluation = await evaluateAnswer(answer.questionId, answer.answer);
 
@@ -250,7 +261,6 @@ export async function submitQuizAttempt(
 
         await Promise.all(evaluationPromises);
 
-        // Calculate score and update attempt
         const responses = await prisma.quizResponse.findMany({
             where: { attemptId: attempt.id }
         });
@@ -266,7 +276,6 @@ export async function submitQuizAttempt(
             }
         });
 
-        // Generate performance report
         const report = await generatePerformanceReport(attempt.id);
 
         return {
@@ -468,5 +477,18 @@ export async function getQuizes(){
     } catch (error) {
         console.error('Error fetching quizzes:', error);
         throw new Error(`Failed to fetch quizzes: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+}
+export async function getAllQuizSubmissions(){
+    try {
+        return await prisma.quizAttempt.findMany({
+            include: {
+                quiz: true,
+                report: true
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching all quiz submissions:', error);
+        throw new Error(`Failed to fetch all quiz submissions: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 }
