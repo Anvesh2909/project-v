@@ -1,6 +1,7 @@
 import prisma from "../config/dbConfig";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import {Role} from "@prisma/client";
 
 export async function createStudent(name: string, uniId: string, password: string) {
     try {
@@ -226,5 +227,83 @@ export async function updatePassword(userId: string, oldPassword: string, newPas
     } catch (error) {
         console.error("Error updating password:", error);
         throw error;
+    }
+}
+export async function createStudentsBulk(students: { name: string; uniId: string; password: string }[]) {
+    try {
+        const year = new Date().getFullYear();
+        const yy = year.toString().slice(-2);
+
+        // Fetch existing students to track latest sequence per prefix
+        const existingStudents = await prisma.user.findMany({
+            where: { role: "STUDENT" },
+            orderBy: { id: "desc" }
+        });
+
+        let latestSequenceMap: { [key: string]: number } = {};
+
+        // Generate student data for bulk insert
+        const studentDataPromises = students.map(async student => {
+            const {name, uniId, password} = student;
+            const uniYear = uniId.slice(0, 2);
+            const prefix = `${yy}VY${uniYear}`;
+
+            // Determine the next sequence number
+            if (!latestSequenceMap[prefix]) {
+                const latestStudent = existingStudents.find(s => s.id.startsWith(prefix));
+                latestSequenceMap[prefix] = latestStudent
+                    ? parseInt(latestStudent.id.slice(-4)) + 1
+                    : 1;
+            } else {
+                latestSequenceMap[prefix] += 1;
+            }
+
+            const formattedSequence = latestSequenceMap[prefix].toString().padStart(4, '0');
+            const id = `${prefix}${formattedSequence}`;
+
+            if (id.length !== 10) {
+                throw new Error(`Generated ID ${id} is not exactly 10 digits`);
+            }
+
+            // Extract branch from the 6th digit of uniId
+            const branchCode = uniId.charAt(5);
+            let branch = "Unknown";
+            switch (branchCode) {
+                case '3':
+                    branch = 'CSE';
+                    break;
+                case '4':
+                    branch = 'ECE';
+                    break;
+                case '8':
+                    branch = 'AIDS';
+                    break;
+                case '9':
+                    branch = 'CSIT';
+                    break;
+            }
+
+            return {
+                id,
+                name,
+                email: `${uniId}@kluniversity.in`,
+                passwordHash: await bcrypt.hash(password, 10),
+                collegeID: uniId,
+                role: Role.STUDENT,
+                branch
+            };
+        });
+
+        const studentData = await Promise.all(studentDataPromises);
+
+        await prisma.user.createMany({
+            data: studentData,
+            skipDuplicates: true
+        });
+
+        return { message: "Students created successfully", count: studentData.length };
+    } catch (error) {
+        console.error("Error creating students:", error);
+        throw new Error("Error creating students");
     }
 }

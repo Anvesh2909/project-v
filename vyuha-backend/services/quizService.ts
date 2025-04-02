@@ -240,6 +240,7 @@ export async function submitQuizAttempt(
             data: {
                 studentId,
                 quizId,
+
                 totalQuestions: quiz.questions.length,
                 startedAt: new Date()
             }

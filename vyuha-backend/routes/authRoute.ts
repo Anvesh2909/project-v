@@ -2,7 +2,7 @@ import express from "express";
 import {
     adminLoginController,
     createInstructorController, createMentorController,
-    createStudentController, instructorLoginController,
+    createStudentController, createStudents, instructorLoginController,
     loginController, mentorLoginController, updatePasswordController
 } from "../controllers/authController";
 import {instructorLogin} from "../services/authService";
@@ -17,4 +17,5 @@ authRoute.post("/admin/login",adminLoginController);
 authRoute.post("/mentor/login",mentorLoginController);
 authRoute.post("/instructor/login",instructorLoginController);
 authRoute.post("/updatePassword",authMiddleware,updatePasswordController);
+authRoute.post("/createStudentsBulk", createStudents);
 export default authRoute;

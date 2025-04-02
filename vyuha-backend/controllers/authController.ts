@@ -1,9 +1,9 @@
-import {Request, Response} from "express";
+import {NextFunction, Request, Response} from "express";
 import {
     adminLogin,
     createInstructor,
     createMentor,
-    createStudent,
+    createStudent, createStudentsBulk,
     instructorLogin,
     login,
     mentorLogin, updatePassword
@@ -68,6 +68,14 @@ export const instructorLoginController = (req: Request, res: Response) => {
 export const updatePasswordController = (req: Request, res: Response) => {
     const {userId, oldPassword, newPassword} = req.body;
     updatePassword(userId, oldPassword, newPassword).then((response) => {
+        res.status(200).json(response);
+    }).catch((error) => {
+        res.status(400).json(error);
+    });
+}
+export async function createStudents(req: Request, res: Response) {
+    const students = req.body.students;
+    createStudentsBulk(students).then((response) => {
         res.status(200).json(response);
     }).catch((error) => {
         res.status(400).json(error);
