@@ -619,3 +619,13 @@ export async function getAllStudentSubmissions(studentId: string) {
         throw new Error(`Failed to fetch student submissions: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 }
+export async function deleteCourse(courseId: string) {
+    try {
+        return await prisma.course.delete({
+            where: { id: courseId }
+        });
+    } catch (error) {
+        console.error("Error deleting course:", error);
+        throw new Error(`Failed to delete course: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+}

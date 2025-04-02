@@ -98,7 +98,12 @@ const ManageCoursesPage = () => {
             setError('');
 
             try {
-                await axios.delete(
+                // Check if token and backendUrl exist before making the request
+                if (!instructorToken || !backendUrl) {
+                    throw new Error('Authentication information is missing. Please log in again.');
+                }
+
+                const response = await axios.delete(
                     `${backendUrl}/ins/deleteCourse/${courseId}`,
                     {
                         headers: {
@@ -107,11 +112,26 @@ const ManageCoursesPage = () => {
                     }
                 );
 
-                // Refresh courses after deletion
-                fetchCourses();
-            } catch (error) {
+                // Check if response indicates success
+                if (response.status === 200) {
+                    fetchCourses();
+                } else {
+                    throw new Error('Server returned an unexpected response.');
+                }
+            } catch (error: any) {
                 console.error('Error deleting course:', error);
-                setError('Failed to delete course. Please try again.');
+
+                // Display more specific error messages
+                if (error.response) {
+                    // Server responded with an error status
+                    setError(`Failed to delete course: ${error.response.data?.message || error.response.statusText}`);
+                } else if (error.request) {
+                    // Request was made but no response received
+                    setError('Server did not respond. Please check your connection and try again.');
+                } else {
+                    // Error in setting up the request
+                    setError(`Failed to delete course: ${error.message}`);
+                }
             } finally {
                 setIsDeleting(null);
             }

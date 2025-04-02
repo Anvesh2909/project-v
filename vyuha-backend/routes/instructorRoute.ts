@@ -4,7 +4,7 @@ import { authMiddleware } from "../middlewares/authMiddleware";
 import {
     addChapterController,
     addLectureController,
-    createCourseController,
+    createCourseController, deleteCourseController,
     getAssignmentsController,
     getChaptersController,
     getCourseController,
@@ -40,4 +40,5 @@ instructorRoute.get("/quizAttempts", authMiddleware, getStudentQuizAttempts);
 instructorRoute.get("/performanceReport/:attemptId", authMiddleware, getPerformanceReport);
 instructorRoute.get("/quiz/course/:courseId", authMiddleware, getQuizzesByCourse);
 instructorRoute.get("/getAttempts",authMiddleware,getAllQuizSubmissions);
+instructorRoute.delete("/deleteCourse/:courseId",authMiddleware,deleteCourseController);
 export default instructorRoute;

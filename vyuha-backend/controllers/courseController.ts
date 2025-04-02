@@ -14,6 +14,7 @@ import {
     setSubmission
 } from "../services/courseService";
 import { Request, Response } from "express";
+import {deleteCourse} from "../services/adminService";
 export const createCourseController = async (req: Request, res: Response): Promise<void> => {
     const { title, description, id, courseType, duration, difficulty } = req.body;
     const image = req.file?.buffer;
@@ -202,6 +203,15 @@ export const getSubmissionsController = async (req: Request, res: Response): Pro
     try {
         const submissions = await getAllStudentSubmissions(studentId);
         res.status(200).json(submissions);
+    } catch (error: any) {
+        res.status(400).json({ error: error.message });
+    }
+}
+export const deleteCourseController = async (req: Request, res: Response): Promise<void> => {
+    const { courseId } = req.params;
+    try {
+        const response = await deleteCourse(courseId);
+        res.status(200).json(response);
     } catch (error: any) {
         res.status(400).json({ error: error.message });
     }
