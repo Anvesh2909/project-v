@@ -19,7 +19,13 @@ import {
     createQuiz,
     getQuiz,
     getStudentQuizAttempts,
-    getPerformanceReport, getQuizzesByCourse, getAllQuizSubmissions
+    getPerformanceReport,
+    getQuizzesByCourse,
+    getAllQuizSubmissions,
+    getQuizQuestions,
+    updateQuizQuestion,
+    deleteQuizQuestion,
+    addQuizQuestion
 } from "../controllers/quizController";
 const instructorRoute = express.Router();
 instructorRoute.get("/getInstructorProfile", authMiddleware, getInstructorController);
@@ -41,4 +47,8 @@ instructorRoute.get("/performanceReport/:attemptId", authMiddleware, getPerforma
 instructorRoute.get("/quiz/course/:courseId", authMiddleware, getQuizzesByCourse);
 instructorRoute.get("/getAttempts",authMiddleware,getAllQuizSubmissions);
 instructorRoute.delete("/deleteCourse/:courseId",authMiddleware,deleteCourseController);
+instructorRoute.get("/quiz/:quizId/questions", authMiddleware, getQuizQuestions);
+instructorRoute.put("/quiz/question/:questionId", authMiddleware, updateQuizQuestion);
+instructorRoute.delete("/quiz/question/:questionId", authMiddleware, deleteQuizQuestion);
+instructorRoute.post("/quiz/:quizId/questions", authMiddleware, addQuizQuestion);
 export default instructorRoute;

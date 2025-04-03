@@ -221,3 +221,93 @@ export const getAllQuizSubmissions = async (req: Request, res: Response): Promis
         });
     }
 }
+export const getQuizQuestions = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { quizId } = req.params;
+
+        if (!quizId) {
+            res.status(400).json({ error: 'Quiz ID is required' });
+            return;
+        }
+
+        const questions = await quizService.getQuestionsByQuizId(quizId);
+
+        res.status(200).json({ success: true, questions });
+    } catch (error) {
+        console.error('Error in getQuizQuestions controller:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error fetching quiz questions'
+        });
+    }
+};
+
+export const updateQuizQuestion = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { questionId } = req.params;
+        const updateData = req.body;
+
+        if (!questionId) {
+            res.status(400).json({ error: 'Question ID is required' });
+            return;
+        }
+
+        const updatedQuestion = await quizService.updateQuestion(questionId, updateData);
+
+        res.status(200).json({ success: true, question: updatedQuestion });
+    } catch (error) {
+        console.error('Error in updateQuizQuestion controller:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error updating quiz question'
+        });
+    }
+};
+
+export const deleteQuizQuestion = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { questionId } = req.params;
+
+        if (!questionId) {
+            res.status(400).json({ error: 'Question ID is required' });
+            return;
+        }
+
+        await quizService.deleteQuestion(questionId);
+
+        res.status(200).json({ success: true, message: 'Question deleted successfully' });
+    } catch (error) {
+        console.error('Error in deleteQuizQuestion controller:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error deleting quiz question'
+        });
+    }
+};
+
+export const addQuizQuestion = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { quizId } = req.params;
+        const questionData = req.body;
+
+        if (!quizId) {
+            res.status(400).json({ error: 'Quiz ID is required' });
+            return;
+        }
+
+        if (!questionData.question || !questionData.correctAnswer || !questionData.questionType) {
+            res.status(400).json({ error: 'Question, correct answer, and question type are required' });
+            return;
+        }
+
+        const newQuestion = await quizService.addQuestionToQuiz(quizId, questionData);
+
+        res.status(201).json({ success: true, question: newQuestion });
+    } catch (error) {
+        console.error('Error in addQuizQuestion controller:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error adding quiz question'
+        });
+    }
+};

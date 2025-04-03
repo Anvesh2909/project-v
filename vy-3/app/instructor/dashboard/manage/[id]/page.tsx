@@ -39,7 +39,6 @@ const ManageCoursePage = () => {
     const [newAssignmentMaxMarks, setNewAssignmentMaxMarks] = useState(100);
     const [viewingAssignment, setViewingAssignment] = useState<any>(null);
     const [isViewAssignmentModalOpen, setIsViewAssignmentModalOpen] = useState(false);
-    // Quiz state variables
     const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
     const [quizzes, setQuizzes] = useState<any[]>([]);
     const [newQuizTitle, setNewQuizTitle] = useState('');

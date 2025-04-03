@@ -190,9 +190,6 @@ const QuizSubmissionsPage = () => {
                                     Completed
                                 </th>
                                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                    Status
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                     Score
                                 </th>
                             </tr>
@@ -212,11 +209,7 @@ const QuizSubmissionsPage = () => {
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="text-sm text-gray-500">{formatDate(attempt.completedAt)}</div>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColorClass(attempt.status)} border`}>
-                                                {attempt.status ? attempt.status.replace('_', ' ') : 'Unknown'}
-                                            </span>
-                                    </td>
+
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         {attempt.score !== null ? (
                                             <div className="text-sm font-semibold text-gray-900">{attempt.score}</div>

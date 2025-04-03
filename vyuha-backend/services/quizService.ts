@@ -160,7 +160,6 @@ export async function createQuiz({
         throw new Error(`Failed to create quiz: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 }
-
 export async function evaluateAnswer(questionId: string, userAnswer: string) {
     try {
         // Get question from database
@@ -491,5 +490,70 @@ export async function getAllQuizSubmissions(){
     } catch (error) {
         console.error('Error fetching all quiz submissions:', error);
         throw new Error(`Failed to fetch all quiz submissions: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+}
+export async function getQuestionsByQuizId(quizId: string) {
+    try {
+        return await prisma.question.findMany({
+            where: { quizId }
+        });
+    } catch (error) {
+        console.error('Error fetching questions:', error);
+        throw new Error(`Failed to fetch questions: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+}
+
+export async function updateQuestion(questionId: string, updateData: {
+    question?: string;
+    options?: string[];
+    correctAnswer?: string;
+    explanation?: string;
+    difficultyLevel?: DifficultyLevel;
+    topic?: string;
+    imageUrl?: string | null;
+    codeSnippet?: string | null;
+}) {
+    try {
+        return await prisma.question.update({
+            where: { id: questionId },
+            data: updateData
+        });
+    } catch (error) {
+        console.error('Error updating question:', error);
+        throw new Error(`Failed to update question: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+}
+
+export async function deleteQuestion(questionId: string) {
+    try {
+        // Check if any responses exist for this question
+        const responses = await prisma.quizResponse.findMany({
+            where: { questionId }
+        });
+
+        if (responses.length > 0) {
+            throw new Error('Cannot delete question with existing student responses');
+        }
+
+        return await prisma.question.delete({
+            where: { id: questionId }
+        });
+    } catch (error) {
+        console.error('Error deleting question:', error);
+        throw new Error(`Failed to delete question: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+}
+
+export async function addQuestionToQuiz(quizId: string, questionData: QuestionData) {
+    try {
+        return await prisma.question.create({
+            data: {
+                ...questionData,
+                quizId
+            }
+        });
+    } catch (error) {
+        console.error('Error adding question to quiz:', error);
+        throw new Error(`Failed to add question: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 }

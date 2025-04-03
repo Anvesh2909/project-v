@@ -209,7 +209,7 @@ const InstructorContextProvider = (props: InstructorContextProviderProps) => {
             setIsLoading(false);
         }
     };
-    // Fix for getQuizAttempts in InstructorContext.tsx
+
     const getQuizAttempts = async (currentToken: string = instructorToken): Promise<void> => {
         if (!currentToken) return;
         setIsLoading(true);

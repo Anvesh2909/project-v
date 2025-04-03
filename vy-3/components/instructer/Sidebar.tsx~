@@ -17,7 +17,8 @@ const Sidebar = () => {
         { name: "Create Course", Icon: PlusCircle, href: "/instructor/dashboard/create" },
         { name: "Quizzes", Icon: FileText, href: "/instructor/dashboard/quiz" },
         { name: "Submissions", Icon: FileText, href: "/instructor/dashboard/submissions" },
-        { name: "Quiz Attempts", Icon: ClipboardCheck, href: "/instructor/dashboard/quizSubmissions" }
+        { name: "Quiz Attempts", Icon: ClipboardCheck, href: "/instructor/dashboard/quizSubmissions" },
+        { name: "Settings", Icon: Settings, href: "/instructor/dashboard/settings" }
     ];
     const isRouteActive = (href: string) => {
         if (href === "/instructor/dashboard" && pathname === "/instructor/dashboard") {
