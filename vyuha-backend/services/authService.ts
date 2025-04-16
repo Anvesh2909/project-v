@@ -2,7 +2,7 @@ import prisma from "../config/dbConfig";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import {Role} from "@prisma/client";
-
+import {sendWelcomeEmail} from "../utils/mailer";
 export async function createStudent(name: string, uniId: string, password: string) {
     try {
         const year = new Date().getFullYear();
@@ -27,6 +27,7 @@ export async function createStudent(name: string, uniId: string, password: strin
             const lastSequence = parseInt(latestStudent.id.slice(-4));
             sequenceNumber = lastSequence + 1;
         }
+
         const formattedSequence = sequenceNumber.toString().padStart(4, '0');
         const id = `${prefix}${formattedSequence}`;
 
@@ -34,7 +35,6 @@ export async function createStudent(name: string, uniId: string, password: strin
             throw new Error(`Generated ID ${id} is not exactly 10 digits`);
         }
 
-        // Extract branch information from the 6th digit (index 5) of uniId
         const branchCode = uniId.charAt(5);
         let branch;
 
@@ -56,19 +56,33 @@ export async function createStudent(name: string, uniId: string, password: strin
         }
 
         const passwordHash = await bcrypt.hash(password, 10);
+        const email = `${uniId}@kluniversity.in`;
+
         const student = await prisma.user.create({
             data: {
                 id,
                 name,
-                email: `${uniId}@kluniversity.in`,
+                email,
                 passwordHash,
                 collegeID: uniId,
                 role: "STUDENT",
-                branch: branch
+                branch
             }
         });
 
         console.log(`Created student with ID: ${student.id}`);
+
+        try {
+            await sendWelcomeEmail({
+                to: email,
+                name,
+                vyuha_id: id,
+                password
+            });
+            console.log(`Welcome email sent to: ${email}`);
+        } catch (emailError) {
+            console.error("Email sending failed, but student was created:", emailError);
+        }
 
         return "Student created successfully";
     } catch (error) {
@@ -76,6 +90,7 @@ export async function createStudent(name: string, uniId: string, password: strin
         throw error;
     }
 }
+
 
 export function generateToken(userId: string, role: string) {
     const payload = {
