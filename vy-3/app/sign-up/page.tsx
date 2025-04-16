@@ -1,57 +1,58 @@
 "use client"
 import { useState, useContext } from "react";
 import Image from "next/image";
-import { Eye, EyeOff, Mail, Lock, Loader2, ArrowLeft, AlertCircle, UserPlus } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, Loader2, ArrowLeft, AlertCircle, User } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import LottieAnimation from "@/components/LottieAnimation";
 import animation from "@/public/Animation3.json";
 import { AppContext } from "@/context/AppContext";
 
-export default function SignIn() {
-    const [id, setID] = useState("");
+export default function SignUp() {
+    const [name, setName] = useState("");
+    const [uniId, setUniId] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
+    const [success, setSuccess] = useState("");
     const router = useRouter();
     const context = useContext(AppContext);
     const backendUrl = context?.backendUrl;
-    const setToken = context?.setToken;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
+        setSuccess("");
         setIsLoading(true);
+
         try {
-            const response = await fetch(`${backendUrl}/auth/login`, {
+            const response = await fetch(`${backendUrl}/auth/createStudent`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ id, password }),
+                body: JSON.stringify({ name, uniId, password }),
             });
 
             const data = await response.json();
 
             if (!response.ok) {
-                // Check if error indicates user not found
-                if (data.message?.toLowerCase().includes("not found") ||
-                    data.message?.toLowerCase().includes("user doesn't exist")) {
-                    setError("Account not found. Please create an account first.");
-                } else {
-                    setError("Invalid ID or password");
+                // Check if the error indicates user already exists
+                if (data.message?.toLowerCase().includes("already exists") ||
+                    data.message?.toLowerCase().includes("already registered")) {
+                    setError("This University ID is already registered. Please sign in instead.");
+                    return;
                 }
-                throw new Error(data.message || "Failed to sign in");
+                throw new Error(data.message || "Failed to sign up");
             }
 
-            const { token } = data;
-            if (setToken) {
-                setToken(token);
-            }
-            router.push("/dashboard");
-        } catch (error) {
-            // Error is already set above
+            setSuccess("Account created successfully! You can now sign in.");
+            setTimeout(() => {
+                router.push("/sign-in");
+            }, 2000);
+        } catch (error: any) {
+            setError(error.message || "Failed to create account");
         } finally {
             setIsLoading(false);
         }
@@ -94,10 +95,10 @@ export default function SignIn() {
                                 />
                                 <div className="text-center">
                                     <h2 className="text-3xl font-bold text-blue-800 mb-2">
-                                        Welcome Back
+                                        Create Account
                                         <span className="ml-2 text-blue-500">.</span>
                                     </h2>
-                                    <p className="text-gray-600">Sign in to access your dashboard</p>
+                                    <p className="text-gray-600">Sign up to join Vyuha</p>
                                 </div>
                             </div>
 
@@ -108,16 +109,22 @@ export default function SignIn() {
                                         <span className="text-sm">{error}</span>
                                     </div>
 
-                                    {error.toLowerCase().includes("not found") ||
-                                    error.toLowerCase().includes("create an account") ? (
+                                    {error.toLowerCase().includes("already registered") ||
+                                    error.toLowerCase().includes("already exists") ? (
                                         <button
-                                            onClick={() => router.push("/sign-up")}
-                                            className="mt-2 w-full py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg font-medium transition-all text-sm flex items-center justify-center gap-2"
+                                            onClick={() => router.push("/sign-in")}
+                                            className="mt-2 w-full py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg font-medium transition-all text-sm"
                                         >
-                                            <UserPlus className="h-4 w-4" />
-                                            <span>Create an Account</span>
+                                            Go to Sign In
                                         </button>
                                     ) : null}
+                                </div>
+                            )}
+
+                            {success && (
+                                <div className="mb-6 p-4 rounded-xl bg-green-50 border border-green-200 flex items-center gap-3 text-green-600">
+                                    <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                                    <span className="text-sm">{success}</span>
                                 </div>
                             )}
 
@@ -125,16 +132,33 @@ export default function SignIn() {
                                 <div className="space-y-4">
                                     <div className="relative">
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Vyuha ID
+                                            Name
+                                        </label>
+                                        <div className="relative">
+                                            <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                                            <input
+                                                type="text"
+                                                value={name}
+                                                onChange={(e) => setName(e.target.value)}
+                                                required
+                                                placeholder="Enter your full name"
+                                                className="w-full pl-12 pr-4 py-3 rounded-xl bg-gray-50 border border-blue-100 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all outline-none"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="relative">
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            University ID
                                         </label>
                                         <div className="relative">
                                             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                                             <input
                                                 type="text"
-                                                value={id}
-                                                onChange={(e) => setID(e.target.value)}
+                                                value={uniId}
+                                                onChange={(e) => setUniId(e.target.value)}
                                                 required
-                                                placeholder="Enter your Vyuha ID"
+                                                placeholder="Enter your KL University ID"
                                                 className="w-full pl-12 pr-4 py-3 rounded-xl bg-gray-50 border border-blue-100 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all outline-none"
                                             />
                                         </div>
@@ -176,17 +200,17 @@ export default function SignIn() {
                                     {isLoading ? (
                                         <>
                                             <Loader2 className="h-5 w-5 animate-spin" />
-                                            <span>Signing in...</span>
+                                            <span>Creating account...</span>
                                         </>
                                     ) : (
-                                        <span>Sign In</span>
+                                        <span>Sign Up</span>
                                     )}
                                 </button>
 
                                 <div className="text-center text-gray-500 text-sm">
-                                    New to Vyuha?{" "}
-                                    <Link href="/sign-up" className="text-blue-600 hover:text-blue-800">
-                                        Create an account
+                                    Already have an account?{" "}
+                                    <Link href="/sign-in" className="text-blue-600 hover:text-blue-800">
+                                        Sign In
                                     </Link>
                                 </div>
                             </form>

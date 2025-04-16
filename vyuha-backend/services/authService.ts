@@ -69,6 +69,7 @@ export async function createStudent(name: string, uniId: string, password: strin
         });
 
         console.log(`Created student with ID: ${student.id}`);
+
         return "Student created successfully";
     } catch (error) {
         console.error("Error creating student:", error);
