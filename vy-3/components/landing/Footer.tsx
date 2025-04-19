@@ -71,7 +71,7 @@ const Footer = () => {
                         <ul className="space-y-2">
                             <li className="flex items-start">
                                 <Mail size={16} className="text-blue-600 mr-2 mt-1 flex-shrink-0" />
-                                <a href="mailto:info@lurnex.edu" className="text-gray-600 hover:text-blue-600">info@lurnex.edu</a>
+                                <a href="mailto:2300032870@kluniversity.in" className="text-gray-600 hover:text-blue-600">2300032870@kluniveristy.in</a>
                             </li>
                             <li className="text-gray-600 mt-4">
                                 KL University, <br />
@@ -83,7 +83,7 @@ const Footer = () => {
 
                 <div className="border-t border-blue-100 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
                     <p className="text-gray-600 text-sm">
-                        © {currentYear} Lurnex. All rights reserved.
+                        © {currentYear} VLearn. All rights reserved.
                     </p>
                     <div className="mt-4 md:mt-0 space-x-6 flex items-center">
                         <Link href="/privacy" className="text-sm text-gray-600 hover:text-blue-600">Privacy Policy</Link>
